@@ -7,7 +7,7 @@ import json
 import pygame
 import threading
 from settings import (
-    SCREEN_WIDTH, SCREEN_HEIGHT, FPS,
+    SCREEN_WIDTH, SCREEN_HEIGHT, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, FPS,
     COLOR_BG, COLOR_TEXT, COLOR_ACCENT,
     FONT_TITLE, FONT_NORMAL, FONT_SMALL,
     GameState
@@ -35,7 +35,14 @@ class MarsColonyGame:
     def __init__(self):
         """Initialize pygame and game components"""
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        # Create the actual display window (resizable)
+        self.display_window = pygame.display.set_mode(
+            (INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT), 
+            pygame.RESIZABLE
+        )
+        # Create the virtual surface for fixed-resolution rendering
+        self.screen = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        
         pygame.display.set_caption("Mars Colony Manager")
         self.clock = pygame.time.Clock()
 
@@ -136,7 +143,20 @@ class MarsColonyGame:
             if event.type == pygame.QUIT:
                 return False
 
+            elif event.type == pygame.VIDEORESIZE:
+                # Update display window size
+                self.display_window = pygame.display.set_mode((event.w, event.h), pygame.RESIZABLE)
+
             if event.type == pygame.KEYDOWN:
+                # F11 for Fullscreen toggle
+                if event.key == pygame.K_F11:
+                    is_fullscreen = self.display_window.get_flags() & pygame.FULLSCREEN
+                    if is_fullscreen:
+                        self.display_window = pygame.display.set_mode((INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT), pygame.RESIZABLE)
+                    else:
+                        # Switch to fullscreen using current desktop resolution
+                        self.display_window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+
                 # Any key press on start screen
                 if self.game.current_state == GameState.START_SCREEN:
                     self.game.start_game()
@@ -237,6 +257,7 @@ class MarsColonyGame:
 
     def render(self):
         """Render the current game state"""
+        # 1. Render everything to the fixed-resolution virtual screen
         self.screen.fill(COLOR_BG)
 
         # Draw background
@@ -244,19 +265,19 @@ class MarsColonyGame:
         
         # Check for AI thinking specific background
         if self.game.current_state == GameState.AI_THINKING and self.thinking_bg:
-            self.screen.blit(self.thinking_bg, (390, 20))
+            self.screen.blit(self.thinking_bg, (750, 20))
             bg_drawn = True
         
         # Check for event specific background
         elif self.game.current_state in [GameState.EVENT_DISPLAY, GameState.PLAYER_EVENT_DISPLAY, GameState.AI_EVENT_DISPLAY]:
             event = self.game.get_current_event()
             if event and event['id'] in self.event_images:
-                self.screen.blit(self.event_images[event['id']], (390, 20))
+                self.screen.blit(self.event_images[event['id']], (750, 20))
                 bg_drawn = True
         
         # Fallback to default background if no event bg or not in event state
         if not bg_drawn and self.default_bg:
-            self.screen.blit(self.default_bg, (390, 20))
+            self.screen.blit(self.default_bg, (750, 20))
 
         if self.game.current_state == GameState.START_SCREEN:
             self.render_start_screen()
@@ -291,12 +312,30 @@ class MarsColonyGame:
         elif self.game.current_state == GameState.VICTORY:
             self.render_victory()
 
+        # 2. Scale and blit the virtual screen to the actual display window
+        window_w, window_h = self.display_window.get_size()
+        screen_w, screen_h = self.screen.get_size()
+
+        scale = min(window_w / screen_w, window_h / screen_h)
+        new_w = int(screen_w * scale)
+        new_h = int(screen_h * scale)
+
+        # Use smoothscale for better quality
+        scaled_surface = pygame.transform.smoothscale(self.screen, (new_w, new_h))
+        
+        # Center the scaled surface
+        x_offset = (window_w - new_w) // 2
+        y_offset = (window_h - new_h) // 2
+
+        self.display_window.fill((0, 0, 0))  # Black bars for letterboxing
+        self.display_window.blit(scaled_surface, (x_offset, y_offset))
+
         pygame.display.flip()
 
     def render_start_screen(self):
         """Render the start screen"""
         # Left Pane: Title
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
         
         # Title Text
         draw_text(self.screen, "MARS", self.font_title, COLOR_TEXT, left_x + left_w // 2, left_y + 150, center=True)
@@ -304,7 +343,7 @@ class MarsColonyGame:
         draw_text(self.screen, "MANAGER", self.font_title, COLOR_TEXT, left_x + left_w // 2, left_y + 250, center=True)
 
         # Bottom Right Pane: Prompt
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
         
         draw_text(
             self.screen,
@@ -325,7 +364,7 @@ class MarsColonyGame:
         explanation_text = self.game.config.get('game_explanation', 'Compare your choices with AI.')
 
         # Left Pane: Intro
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
         
         draw_text(self.screen, intro_title, self.font_title, COLOR_TEXT, left_x, left_y)
         
@@ -340,7 +379,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Explanation and Start
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Explanation text above the button
         draw_multiline_text(
@@ -368,7 +407,7 @@ class MarsColonyGame:
     def render_ai_thinking(self):
         """Show AI is making a decision"""
         # Left Pane: Status
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         draw_text(
             self.screen,
@@ -413,7 +452,7 @@ class MarsColonyGame:
             )
             
             # Bottom Right Pane: Action
-            bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+            bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
             
             self.menu_options = ["See Decision"]
             draw_menu_options(
@@ -433,7 +472,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Event Info
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         draw_text(
             self.screen,
@@ -465,7 +504,7 @@ class MarsColonyGame:
         )
         
         # Bottom Right Pane: Action
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         if self.game.selected_option is None:
             # Initial state: Prompt user to trigger AI
@@ -509,7 +548,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Description
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         # Stats display (in left pane top)
         stats_text = f"POP: {self.game.stats['pop']} | QOL: {self.game.stats['qol']}"
@@ -536,7 +575,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Options
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Menu options
         self.menu_options = [option['text'] for option in event['options']]
@@ -558,7 +597,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Description
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         # Phase indicator
         draw_text(
@@ -595,7 +634,7 @@ class MarsColonyGame:
         )
         
         # Bottom Right Pane: AI Choice and Options
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
         
         current_y = bottom_y
 
@@ -637,7 +676,7 @@ class MarsColonyGame:
         comparison = self.game.calculate_comparison_data()
 
         # Left Pane: Results Table
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         draw_text(
             self.screen,
@@ -688,7 +727,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Play Again"]
@@ -708,7 +747,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Outcome Message & Stats
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
         
         # Success message
         draw_text(
@@ -746,7 +785,7 @@ class MarsColonyGame:
             draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, current_y + 30)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Next"]
@@ -766,7 +805,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Fail Message
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         # Game over title
         draw_text(
@@ -789,7 +828,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
@@ -814,7 +853,7 @@ class MarsColonyGame:
     def render_victory(self):
         """Render victory screen"""
         # Left Pane: Victory Info
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
 
         # Victory title
         draw_text(
@@ -843,7 +882,7 @@ class MarsColonyGame:
         draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, left_y + 120)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
