@@ -8,10 +8,12 @@ Manage a Mars colony through critical events. Each event presents 3 choices with
 
 ## Features
 
+- **AI vs Human mode** - watch AI play, then compete with same challenges
 - **Retro GameBoy aesthetic** with classic green color palette
 - **Data-driven design** - all game content in `gamedata.json`
 - **State machine architecture** for clean game flow
 - **Risk vs reward** gameplay with probability-based outcomes
+- **LLM integration** - uses Gemini 2.5 Flash via official SDK (extensible for other providers)
 
 ## Installation
 
@@ -23,8 +25,13 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
 2. Install dependencies:
 ```bash
-pip install pygame-ce
-# Or fallback to: pip install pygame
+pip install -r requirements.txt
+```
+
+3. Setup API key (optional - game works without it using random AI):
+```bash
+cp .env.example .env
+# Edit .env and add your Gemini API key from https://makersuite.google.com/app/apikey
 ```
 
 ## Running the Game
@@ -34,21 +41,34 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python3 main.py
 ```
 
+## Controls
+
+**Keyboard Only:**
+- **Arrow Keys (Up/Down)**: Navigate between options
+- **Enter or Space**: Select highlighted option
+- **Any Key**: Start game from title screen
+
 ## How to Play
 
-1. **Start Screen**: Press any key to begin
-2. **Event Screen**: Read the event and click one of the 3 options
-3. **Outcome**: See if your choice succeeded or failed
-   - **Success**: View stat changes and continue
-   - **Failure**: Game over with explanation
-4. **Victory**: Complete all events to win
+### AI vs Human Mode
 
-## MVP Status
+1. **Start Screen**: Press any key to begin
+2. **Mode Select**: Use arrow keys to select "AI vs Human", press Enter
+3. **AI Phase**: Watch AI make decisions through all events
+   - Press Enter on "Next" button to see each AI choice and outcome
+4. **Player Phase**: Your turn with the same challenges
+   - See what AI chose for each event (marked with "(AI)")
+   - Use arrow keys to navigate, Enter to confirm AI's choice or select a different option
+5. **Comparison**: See who performed better - you or the AI!
+
+## Current Status
 
 Current version includes:
-- ✅ 1 event (Water Crisis) with 3 choices
-- ✅ Full state machine (start, event, result, game over, victory)
-- ✅ RNG-based success/failure system
+- ✅ AI vs Human mode with full gameplay loop
+- ✅ Gemini 2.5 Flash integration via official SDK (with fallback to random)
+- ✅ 1 event (Water Crisis) with 3 choices - scalable for more events
+- ✅ Full state machine (start, mode select, AI phase, player phase, comparison)
+- ✅ Fixed RNG seed for fair AI vs player comparison
 - ✅ Text-only retro interface
 - ✅ GameBoy color palette
 
@@ -60,7 +80,10 @@ algo-gov-game/
 ├── settings.py          # Constants and configuration
 ├── game_state.py        # State machine and game logic
 ├── ui_manager.py        # UI helpers and Button class
+├── llm_client.py        # LLM API integration (Gemini SDK, extensible)
 ├── gamedata.json        # Game content and probabilities
+├── .env.example         # Environment template
+├── requirements.txt     # Python dependencies
 ├── assets/              # Assets directory (fonts, images, sounds)
 └── .venv/               # Virtual environment
 ```
@@ -90,10 +113,12 @@ To add more events, edit `gamedata.json` and add new event objects following thi
 ## Technical Details
 
 - **Python 3.10+** required
-- **pygame-ce** (Community Edition) or pygame
+- **pygame-ce** (Community Edition) recommended
+- **python-dotenv** for environment configuration
+- **google-generativeai** official SDK for Gemini API
 - 800x600 window resolution
 - 60 FPS target
-- Clean separation: game logic, UI rendering, and data
+- Clean separation: game logic, UI rendering, LLM client, and data
 
 ## Future Enhancements
 

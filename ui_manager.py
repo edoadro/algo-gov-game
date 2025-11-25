@@ -1,8 +1,9 @@
 """
-UI Manager for retro-styled text rendering and buttons
+UI Manager for retro-styled TUI rendering
+Pokemon-style text box interface
 """
 import pygame
-from settings import COLOR_TEXT, COLOR_BUTTON, COLOR_BUTTON_HOVER
+from settings import COLOR_TEXT, COLOR_ACCENT, COLOR_BG
 
 
 def draw_text(surface, text, font, color, x, y, center=False):
@@ -76,42 +77,56 @@ def draw_multiline_text(surface, text, font, color, x, y, max_width):
     return len(lines) * line_height
 
 
-class Button:
-    """Simple clickable button with hover effect"""
+def draw_text_box(surface, x, y, width, height, border_width=3):
+    """
+    Draw a Pokemon-style bordered text box
 
-    def __init__(self, x, y, width, height, text, font):
-        """
-        Initialize button
+    Args:
+        surface: pygame surface to draw on
+        x, y: top-left position
+        width, height: box dimensions
+        border_width: thickness of border
 
-        Args:
-            x, y: top-left position
-            width, height: button dimensions
-            text: button label
-            font: pygame font object
-        """
-        self.rect = pygame.Rect(x, y, width, height)
-        self.text = text
-        self.font = font
-        self.hovered = False
+    Returns:
+        Inner rect (x, y, width, height) for content area
+    """
+    # Draw background
+    pygame.draw.rect(surface, COLOR_BG, (x, y, width, height))
 
-    def update(self, mouse_pos):
-        """Update hover state based on mouse position"""
-        self.hovered = self.rect.collidepoint(mouse_pos)
+    # Draw border
+    pygame.draw.rect(surface, COLOR_TEXT, (x, y, width, height), border_width)
 
-    def is_clicked(self, mouse_pos, mouse_clicked):
-        """Check if button was clicked"""
-        return self.rect.collidepoint(mouse_pos) and mouse_clicked
+    # Return inner content area (with padding)
+    padding = 15
+    return (x + padding, y + padding, width - 2*padding, height - 2*padding)
 
-    def draw(self, surface):
-        """Draw the button"""
-        # Choose color based on hover state
-        color = COLOR_BUTTON_HOVER if self.hovered else COLOR_BUTTON
 
-        # Draw button rectangle
-        pygame.draw.rect(surface, color, self.rect)
-        pygame.draw.rect(surface, COLOR_TEXT, self.rect, 2)  # Border
+def draw_menu_options(surface, options, selected_index, font, x, y, line_spacing=35):
+    """
+    Draw a list of selectable text options with cursor
 
-        # Draw text centered on button
-        text_surface = self.font.render(self.text, True, COLOR_TEXT)
-        text_rect = text_surface.get_rect(center=self.rect.center)
-        surface.blit(text_surface, text_rect)
+    Args:
+        surface: pygame surface to draw on
+        options: list of text strings
+        selected_index: which option is currently selected (0-indexed)
+        font: pygame font object
+        x, y: starting position for first option
+        line_spacing: vertical space between options
+
+    Returns:
+        Total height used
+    """
+    for i, option_text in enumerate(options):
+        # Draw cursor for selected option
+        if i == selected_index:
+            cursor = "> "
+            color = COLOR_ACCENT
+        else:
+            cursor = "  "
+            color = COLOR_TEXT
+
+        # Draw the option text with cursor
+        full_text = cursor + option_text
+        draw_text(surface, full_text, font, color, x, y + i * line_spacing)
+
+    return len(options) * line_spacing

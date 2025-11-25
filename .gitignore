@@ -30,4 +30,8 @@ Thumbs.db
 
 # Agent files
 CLAUDE.md
+GEMINI.md
 plan.md
+
+# Environment variables
+.env

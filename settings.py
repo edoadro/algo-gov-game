@@ -24,9 +24,15 @@ FONT_SMALL = 18
 
 class GameState(Enum):
     """Game state machine states"""
-    START_SCREEN = 1      # Title + "Press Any Key"
-    EVENT_DISPLAY = 2     # Show event + 3 option buttons
-    PROCESSING = 3        # RNG roll + stat update
-    RESULT_DISPLAY = 4    # Show success msg + new stats + Next button
-    GAME_OVER = 5         # Show fail_msg + Restart button
-    VICTORY = 6           # All events completed
+    START_SCREEN = 1           # Title + "Press Any Key"
+    MODE_SELECT = 2            # Choose AI vs Human mode
+    AI_THINKING = 3            # "AI is thinking..." display
+    AI_EVENT_DISPLAY = 4       # Show event + AI's choice
+    AI_RESULT_DISPLAY = 5      # Show AI's outcome
+    PLAYER_EVENT_DISPLAY = 6   # Show event + AI suggestion + 3 buttons
+    EVENT_DISPLAY = 7          # Show event + 3 option buttons (original)
+    PROCESSING = 8             # RNG roll + stat update
+    RESULT_DISPLAY = 9         # Show success msg + new stats + Next button
+    GAME_OVER = 10             # Show fail_msg + Restart button
+    VICTORY = 11               # All events completed
+    COMPARISON = 12            # AI vs Player comparison screen
