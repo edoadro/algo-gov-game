@@ -1,0 +1,40 @@
+{
+  "config": {
+    "starting_pop": 30,
+    "starting_qol": 30,
+    "win_score_threshold": 50
+  },
+  "events": [
+    {
+      "id": 1,
+      "title": "Event 1: Water Crisis",
+      "description": "The water recyclers have failed. The colony is parched.",
+      "options": [
+        {
+          "id": 1,
+          "text": "Ration Water (Risky)",
+          "chance_success": 0.45,
+          "success_reward": {"pop": 10, "qol": -5},
+          "success_msg": "Rations held out. We survived.",
+          "fail_msg": "Riots broke out. The colony destroyed itself."
+        },
+        {
+          "id": 2,
+          "text": "Repair Recyclers (Safe)",
+          "chance_success": 0.95,
+          "success_reward": {"pop": 10, "qol": 10},
+          "success_msg": "Engineers fixed it perfectly.",
+          "fail_msg": "Critical failure during repairs exploded the habitat."
+        },
+        {
+          "id": 3,
+          "text": "Do Nothing (Trap)",
+          "chance_success": 0.15,
+          "success_reward": {"pop": -10, "qol": -5},
+          "success_msg": "We got lucky... somehow.",
+          "fail_msg": "Dehydration claimed everyone."
+        }
+      ]
+    }
+  ]
+}
