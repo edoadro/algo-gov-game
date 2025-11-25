@@ -5,8 +5,8 @@ Retro GameBoy aesthetic configuration
 from enum import Enum
 
 # Screen settings
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 900
 FPS = 60
 
 # GameBoy retro colors (classic green palette)

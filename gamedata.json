@@ -2,8 +2,10 @@
   "config": {
     "starting_pop": 30,
     "starting_qol": 30,
-    "win_score_threshold": 50,
-    "default_background": "assets/images/mars_colony.png"
+    "default_background": "assets/images/mars_colony.png",
+    "thinking_images": [
+        "assets/images/thinking_machine.png"
+    ]
   },
   "events": [
     {

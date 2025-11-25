@@ -181,6 +181,7 @@ class Game:
     def ai_advance_to_next_event(self):
         """AI phase progression"""
         self.current_event_index += 1
+        self.selected_option = None  # Reset selection for next event
 
         if self.current_event_index >= len(self.events):
             # AI completed all events successfully
@@ -188,7 +189,7 @@ class Game:
             self.current_state = GameState.VICTORY
         else:
             # Continue to next event
-            self.current_state = GameState.AI_THINKING
+            self.current_state = GameState.AI_EVENT_DISPLAY
 
     def ai_game_over_handler(self):
         """Handle AI failing an event"""
