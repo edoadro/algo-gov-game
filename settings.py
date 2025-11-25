@@ -16,10 +16,10 @@ COLOR_ACCENT = (139, 172, 15)      # Medium green accent
 COLOR_BUTTON = (48, 98, 48)        # Button background
 COLOR_BUTTON_HOVER = (139, 172, 15) # Button hover
 
-# Font sizes
-FONT_TITLE = 32
-FONT_NORMAL = 24
-FONT_SMALL = 18
+# Font sizes (Reduced for smaller overall scale)
+FONT_TITLE = 26
+FONT_NORMAL = 19
+FONT_SMALL = 14
 
 
 class GameState(Enum):

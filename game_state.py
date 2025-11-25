@@ -159,7 +159,7 @@ class Game:
     def start_ai_phase(self):
         """Begin AI playthrough"""
         self.current_phase = 'ai'
-        self.current_state = GameState.AI_THINKING
+        self.current_state = GameState.AI_EVENT_DISPLAY
         self.current_event_index = 0
         self.stats = {
             'pop': self.config['starting_pop'],

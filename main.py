@@ -12,7 +12,7 @@ from settings import (
     FONT_TITLE, FONT_NORMAL, FONT_SMALL,
     GameState
 )
-from ui_manager import draw_text, draw_multiline_text, draw_text_box, draw_menu_options
+from ui_manager import draw_text, draw_multiline_text, draw_text_box, draw_menu_options, draw_text_right
 from game_state import Game
 
 
@@ -40,9 +40,12 @@ class MarsColonyGame:
         self.clock = pygame.time.Clock()
 
         # Load fonts
-        self.font_title = pygame.font.Font(None, FONT_TITLE)
-        self.font_normal = pygame.font.Font(None, FONT_NORMAL)
-        self.font_small = pygame.font.Font(None, FONT_SMALL)
+        # Use system monospace font for better symbol support (arrows) and retro look
+        # pygame.font.SysFont(name, size) - name can be a comma-separated list of preferences
+        font_prefs = 'couriernew,courier,monospace'
+        self.font_title = pygame.font.SysFont(font_prefs, FONT_TITLE, bold=True)
+        self.font_normal = pygame.font.SysFont(font_prefs, FONT_NORMAL, bold=True)
+        self.font_small = pygame.font.SysFont(font_prefs, FONT_SMALL, bold=True)
 
         # Load game data and initialize game state
         game_data = load_game_data('gamedata.json')
@@ -77,6 +80,23 @@ class MarsColonyGame:
         # AI Threading state
         self.ai_decision_index = None
         self.ai_thread = None
+
+    def _draw_nav_hint(self, bottom_pane_rect):
+        """Draw navigation hint in the bottom right of the given rectangle."""
+        bottom_x, bottom_y, bottom_w, bottom_h = bottom_pane_rect
+        hint_text = "Use ↑ ↓ to select, ENTER to confirm"
+        
+        # Position slightly above the very bottom and with some padding from the right
+        # bottom_x + bottom_w is the right edge of the inner box
+        # bottom_y + bottom_h is the bottom edge of the inner box
+        draw_text_right(
+            self.screen,
+            hint_text,
+            self.font_small,
+            COLOR_ACCENT,
+            bottom_x + bottom_w - 10, # 10 pixels padding from right
+            bottom_y + bottom_h - self.font_small.get_height() - 5 # 5 pixels padding from bottom
+        )
 
     def load_and_scale_image(self, path):
         """Load an image and scale it to screen dimensions"""
@@ -142,13 +162,12 @@ class MarsColonyGame:
     def handle_menu_selection(self, option_index):
         """Handle menu option selection based on current state"""
         if self.game.current_state == GameState.MODE_SELECT:
-            # Only one option: AI vs Human
+            # Only one option: Start Simulation
             if option_index == 0:
                 self.game.gameplay_mode = 'ai_vs_human'
                 self.game.initialize_seed()
                 self.game.start_ai_phase()
-                # Start by showing the event description first
-                self.game.current_state = GameState.AI_EVENT_DISPLAY
+                # AI thread starts in AI_EVENT_DISPLAY now
 
         elif self.game.current_state == GameState.AI_THINKING:
             # Only option: "See Decision" (when ready)
@@ -296,18 +315,23 @@ class MarsColonyGame:
             bottom_y + bottom_h // 2,
             center=True
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_mode_select(self):
-        """Render mode selection screen"""
-        # Left Pane: Info
+        """Render intro and explanation screen"""
+        # Get text from config
+        intro_title = self.game.config.get('intro_title', 'INTRODUCTION')
+        intro_text = self.game.config.get('intro_text', 'Welcome to Mars Colony Manager.')
+        explanation_text = self.game.config.get('game_explanation', 'Compare your choices with AI.')
+
+        # Left Pane: Intro
         left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 350, 860)
         
-        draw_text(self.screen, "SELECT MODE", self.font_title, COLOR_TEXT, left_x, left_y)
+        draw_text(self.screen, intro_title, self.font_title, COLOR_TEXT, left_x, left_y)
         
-        desc_text = "Watch AI play, then compete with same challenges."
         draw_multiline_text(
             self.screen,
-            desc_text,
+            intro_text,
             self.font_normal,
             COLOR_TEXT,
             left_x,
@@ -315,19 +339,31 @@ class MarsColonyGame:
             left_w
         )
 
-        # Bottom Right Pane: Options
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        # Bottom Right Pane: Explanation and Start
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
+
+        # Explanation text above the button
+        draw_multiline_text(
+            self.screen,
+            explanation_text,
+            self.font_normal,
+            COLOR_TEXT,
+            bottom_x,
+            bottom_y,
+            bottom_w
+        )
 
         # Menu options
-        self.menu_options = ["AI vs Human"]
+        self.menu_options = ["Start Simulation"]
         draw_menu_options(
             self.screen,
             self.menu_options,
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y
+            bottom_y + 100 # Push button down
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_ai_thinking(self):
         """Show AI is making a decision"""
@@ -377,7 +413,7 @@ class MarsColonyGame:
             )
             
             # Bottom Right Pane: Action
-            bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+            bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
             
             self.menu_options = ["See Decision"]
             draw_menu_options(
@@ -388,6 +424,7 @@ class MarsColonyGame:
                 bottom_x,
                 bottom_y
             )
+            self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_ai_event_display(self):
         """Show event and AI's choice"""
@@ -428,7 +465,7 @@ class MarsColonyGame:
         )
         
         # Bottom Right Pane: Action
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         if self.game.selected_option is None:
             # Initial state: Prompt user to trigger AI
@@ -463,6 +500,7 @@ class MarsColonyGame:
                 bottom_x,
                 bottom_y + 40
             )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_event_display(self):
         """Render event with options"""
@@ -498,7 +536,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Options
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         # Menu options
         self.menu_options = [option['text'] for option in event['options']]
@@ -511,6 +549,7 @@ class MarsColonyGame:
             bottom_y,
             line_spacing=40
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_player_event_display(self):
         """Render event with AI's choice highlighted"""
@@ -556,7 +595,7 @@ class MarsColonyGame:
         )
         
         # Bottom Right Pane: AI Choice and Options
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
         
         current_y = bottom_y
 
@@ -591,6 +630,7 @@ class MarsColonyGame:
             current_y,
             line_spacing=35
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_comparison(self):
         """Show AI vs Player comparison"""
@@ -648,7 +688,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Play Again"]
@@ -660,6 +700,7 @@ class MarsColonyGame:
             bottom_x,
             bottom_y
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_result_display(self):
         """Render success result"""
@@ -703,12 +744,9 @@ class MarsColonyGame:
 
             draw_text(self.screen, pop_text, self.font_normal, COLOR_TEXT, left_x, current_y)
             draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, current_y + 30)
-        else:
-            # Hide stats for AI to prevent player cheating
-            draw_text(self.screen, "Stats updated (Hidden)", self.font_small, COLOR_ACCENT, left_x, current_y)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Next"]
@@ -720,6 +758,7 @@ class MarsColonyGame:
             bottom_x,
             bottom_y
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_game_over(self):
         """Render game over screen"""
@@ -750,7 +789,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
@@ -770,6 +809,7 @@ class MarsColonyGame:
             bottom_x,
             bottom_y
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_victory(self):
         """Render victory screen"""
@@ -803,7 +843,7 @@ class MarsColonyGame:
         draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, left_y + 120)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, _, _ = draw_text_box(self.screen, 390, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 390, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
@@ -823,6 +863,7 @@ class MarsColonyGame:
             bottom_x,
             bottom_y
         )
+        self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def run(self):
         """Main game loop"""

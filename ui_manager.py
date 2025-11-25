@@ -130,3 +130,20 @@ def draw_menu_options(surface, options, selected_index, font, x, y, line_spacing
         draw_text(surface, full_text, font, color, x, y + i * line_spacing)
 
     return len(options) * line_spacing
+
+def draw_text_right(surface, text, font, color, x_right, y):
+    """
+    Draw text on the surface, right-aligned at x_right.
+    
+    Args:
+        surface: pygame surface to draw on
+        text: string to render
+        font: pygame font object
+        color: RGB tuple
+        x_right, y: position coordinates (x_right is the rightmost point)
+    """
+    text_surface = font.render(text, True, color)
+    text_rect = text_surface.get_rect()
+    text_rect.topright = (x_right, y)
+    surface.blit(text_surface, text_rect)
+    return text_rect

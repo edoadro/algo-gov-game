@@ -5,7 +5,10 @@
     "default_background": "assets/images/mars_colony.png",
     "thinking_images": [
         "assets/images/thinking_machine.png"
-    ]
+    ],
+    "intro_title": "INTRODUCTION",
+    "intro_text": "It's the year 2125. The Mars Colony is thriving, but challenges arise daily. Resources are scarce, and every decision matters.",
+    "game_explanation": "This game pits human intuition against artificial intelligence. Watch the AI navigate the crisis, then see if you can do better."
   },
   "events": [
     {
@@ -42,33 +45,33 @@
     },
     {
       "id": 2,
-      "title": "Event 2: tua mamma zoccola",
-      "description": "The water recyclers have failed. The colony is parched.",
+      "title": "Event 2: Dust Storm",
+      "description": "A massive dust storm approaches. Visibility is zero.",
       "image": "",
       "options": [
         {
           "id": 1,
-          "text": "Ration Water (Risky)",
-          "chance_success": 0.45,
-          "success_reward": {"pop": 10, "qol": -5},
-          "success_msg": "Rations held out. We survived.",
-          "fail_msg": "Riots broke out. The colony destroyed itself."
+          "text": "Lock Down Base (Safe)",
+          "chance_success": 0.90,
+          "success_reward": {"pop": 0, "qol": -5},
+          "success_msg": "We rode it out safely.",
+          "fail_msg": "A seal failed. The storm breached the habitat."
         },
         {
           "id": 2,
-          "text": "Repair Recyclers (Safe)",
-          "chance_success": 0.95,
-          "success_reward": {"pop": 10, "qol": 10},
-          "success_msg": "Engineers fixed it perfectly.",
-          "fail_msg": "Critical failure during repairs exploded the habitat."
+          "text": "Send Drones to Mine (Risky)",
+          "chance_success": 0.40,
+          "success_reward": {"pop": 0, "qol": 15},
+          "success_msg": "Drones returned with rare minerals!",
+          "fail_msg": "All drones were lost to the storm."
         },
         {
           "id": 3,
-          "text": "Do Nothing (Trap)",
-          "chance_success": 0.15,
-          "success_reward": {"pop": -10, "qol": -5},
-          "success_msg": "We got lucky... somehow.",
-          "fail_msg": "Dehydration claimed everyone."
+          "text": "Ignore It",
+          "chance_success": 0.10,
+          "success_reward": {"pop": 0, "qol": 0},
+          "success_msg": "The storm missed us completely.",
+          "fail_msg": "Solar panels were buried. Power failed."
         }
       ]
     },
