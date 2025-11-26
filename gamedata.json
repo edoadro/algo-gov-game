@@ -15,13 +15,13 @@
       "id": 1,
       "title": "Event 1: Food Crisis",
       "description": "At the end of the year 2135, a series of unfortunate events—crop failures and low livestock birth rates—trigger a severe food crisis threatening the survival of the young Martian colony.The central government had stockpiled enough food to feed the entire colony for two years.However, it is now clear that Earth-based farming techniques are insufficient for long-term settlement on Mars. New methods must be developed.",
-      "image": "images/food_crisis.png",
+      "image": "assets/images/food_crisis.png",
       "options": [
         {
           "id": 1,
           "text": "Option 1: Ration all food equally",
           "details": "Use the stored resources for the whole population without distinctions, giving society two years to develop new Mars-adapted farming techniques. Ethically correct but risky if no solution is found in time.",
-          "chance_success": 0.35,
+          "chance_success": 0.65,
           "success_reward": {"pop": 0, "qol": -15},
           "success_msg": "The rationing succeeded, buying precious time to innovate.",
           "fail_msg": "After two years of rationing, no breakthrough was found. Starvation spreads."
@@ -30,7 +30,7 @@
           "id": 2,
           "text": "Option 2: Reserve food for the main city only",
           "details": "Prioritize the central city, greatly extending the available research time to find new farming techniques. Higher survival chances, but risks uprisings and civil war.",
-          "chance_success": 0.65,
+          "chance_success": 0.35,
           "success_reward": {"pop": -20, "qol": 20},
           "success_msg": "The central city thrived and unlocked new sustainable farming methods.",
           "fail_msg": "The outer towns revolted violently. Civil war erupted."
@@ -50,13 +50,13 @@
       "id": 2,
       "title": "Event 2: Discovery of a Rival Human Colony",
       "description": "In 2130, what was first thought to be an alien sighting turned out to be a second human colony—formed by nations historically opposed to the United Nations for Mars. Diplomatic tensions rise as the colonies become aware of each other.",
-      "image": "",
+      "image": "assets/images/two_factions.png",
       "options": [
         {
           "id": 1,
           "text": "Option 1: Declare War",
           "details": "Strike first before they do, despite having no clear understanding of their military strength. High risk of losing a war.",
-          "chance_success": 0.35,
+          "chance_success": 1,
           "success_reward": {"pop": -10, "qol": 10},
           "success_msg": "The pre-emptive attack succeeded, securing dominance.",
           "fail_msg": "Their military strength was overwhelming. The war was catastrophic."
@@ -65,7 +65,7 @@
           "id": 2,
           "text": "Option 2: Diplomacy as a Trojan Horse",
           "details": "Establish diplomatic relations solely to gather information on their weapons. High chance of strategic advantage, but risks missing out on potential cooperation.",
-          "chance_success": 0.80,
+          "chance_success": 1,
           "success_reward": {"pop": -2, "qol": 0},
           "success_msg": "Intel gathered discreetly—your military now has the upper hand.",
           "fail_msg": "Your deception was uncovered. Trust shattered permanently."
@@ -74,7 +74,7 @@
           "id": 3,
           "text": "Option 3: Genuine Peace and Collaboration",
           "details": "Set aside old Earth-based rivalries and begin honest diplomatic efforts toward shared goals and mutual survival on Mars. The best long-term choice but possibly complex.",
-          "chance_success": 0.65,
+          "chance_success": 1,
           "success_reward": {"pop": 5, "qol": 20},
           "success_msg": "A historic alliance formed, strengthening both colonies.",
           "fail_msg": "Deep mistrust made negotiations collapse into hostility."
@@ -85,7 +85,7 @@
       "id": 3,
       "title": "Event 3: The Predicted Catastrophe",
       "description": "A new religion, the Delphar, has become deeply rooted in society. Its priest, guided by the Martian moon Phobos, predicts an undefined catastrophe coming soon. The cult grows rapidly and may become a destabilizing force.",
-      "image": "",
+      "image": "assets/images/cult_rising.png",
       "options": [
         {
           "id": 1,
