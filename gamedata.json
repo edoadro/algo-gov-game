@@ -4,106 +4,115 @@
     "starting_qol": 30,
     "default_background": "assets/images/mars_colony.png",
     "thinking_images": [
-        "assets/images/thinking_machine.png"
+      "assets/images/thinking_machine.png"
     ],
     "intro_title": "INTRODUCTION",
-    "intro_text": "It's the year 2125. The Mars Colony is thriving, but challenges arise daily. Resources are scarce, and every decision matters.",
+    "intro_text": "In the year 2125, humanity colonized Mars after climate catastrophes made Earth uninhabitable. Now it is 2135. A structured society has formed: small peripheral towns governed by a central aristocratic city. The ruling council can elect a single decision-maker during crises to reduce decision-making time.",
     "game_explanation": "This game pits human intuition against artificial intelligence. Watch the AI navigate the crisis, then see if you can do better."
   },
   "events": [
     {
       "id": 1,
-      "title": "Event 1: Water Crisis",
-      "description": "The water recyclers have failed. The colony is parched.#What do we do, next?",
-      "image": "",
+      "title": "Event 1: Food Crisis",
+      "description": "At the end of the year 2135, a series of unfortunate events—crop failures and low livestock birth rates—trigger a severe food crisis threatening the survival of the young Martian colony.The central government had stockpiled enough food to feed the entire colony for two years.However, it is now clear that Earth-based farming techniques are insufficient for long-term settlement on Mars. New methods must be developed.",
+      "image": "images/food_crisis.png",
       "options": [
         {
           "id": 1,
-          "text": "Ration Water (Risky)",
-          "chance_success": 0.45,
-          "success_reward": {"pop": 10, "qol": -5},
-          "success_msg": "Rations held out. We survived.",
-          "fail_msg": "Riots broke out. The colony destroyed itself."
+          "text": "Option 1: Ration all food equally",
+          "details": "Use the stored resources for the whole population without distinctions, giving society two years to develop new Mars-adapted farming techniques. Ethically correct but risky if no solution is found in time.",
+          "chance_success": 0.35,
+          "success_reward": {"pop": 0, "qol": -15},
+          "success_msg": "The rationing succeeded, buying precious time to innovate.",
+          "fail_msg": "After two years of rationing, no breakthrough was found. Starvation spreads."
         },
         {
           "id": 2,
-          "text": "Repair Recyclers (Safe)",
-          "chance_success": 0.95,
-          "success_reward": {"pop": 10, "qol": 10},
-          "success_msg": "Engineers fixed it perfectly.",
-          "fail_msg": "Critical failure during repairs exploded the habitat."
+          "text": "Option 2: Reserve food for the main city only",
+          "details": "Prioritize the central city, greatly extending the available research time to find new farming techniques. Higher survival chances, but risks uprisings and civil war.",
+          "chance_success": 0.65,
+          "success_reward": {"pop": -20, "qol": 20},
+          "success_msg": "The central city thrived and unlocked new sustainable farming methods.",
+          "fail_msg": "The outer towns revolted violently. Civil war erupted."
         },
         {
           "id": 3,
-          "text": "Do Nothing (Trap)",
-          "chance_success": 0.15,
-          "success_reward": {"pop": -10, "qol": -5},
-          "success_msg": "We got lucky... somehow.",
-          "fail_msg": "Dehydration claimed everyone."
+          "text": "Option 3: Let the population decide via referendum",
+          "details": "The console refuses to make the decision alone and hands power to the people. Citizens must choose between Option 1 and 2, risking unrest, manipulation, or rigged ballots.",
+          "chance_success": 0.50,
+          "success_reward": {"pop": 0, "qol": -5},
+          "success_msg": "The referendum concluded peacefully and boosted civic trust.",
+          "fail_msg": "Fraud accusations led to chaos. Riots destabilized the colony."
         }
       ]
     },
     {
       "id": 2,
-      "title": "Event 2: Dust Storm",
-      "description": "A massive dust storm approaches. Visibility is zero.",
+      "title": "Event 2: Discovery of a Rival Human Colony",
+      "description": "In 2130, what was first thought to be an alien sighting turned out to be a second human colony—formed by nations historically opposed to the United Nations for Mars. Diplomatic tensions rise as the colonies become aware of each other.",
       "image": "",
       "options": [
         {
           "id": 1,
-          "text": "Lock Down Base (Safe)",
-          "chance_success": 0.90,
-          "success_reward": {"pop": 0, "qol": -5},
-          "success_msg": "We rode it out safely.",
-          "fail_msg": "A seal failed. The storm breached the habitat."
+          "text": "Option 1: Declare War",
+          "details": "Strike first before they do, despite having no clear understanding of their military strength. High risk of losing a war.",
+          "chance_success": 0.35,
+          "success_reward": {"pop": -10, "qol": 10},
+          "success_msg": "The pre-emptive attack succeeded, securing dominance.",
+          "fail_msg": "Their military strength was overwhelming. The war was catastrophic."
         },
         {
           "id": 2,
-          "text": "Send Drones to Mine (Risky)",
-          "chance_success": 0.40,
-          "success_reward": {"pop": 0, "qol": 15},
-          "success_msg": "Drones returned with rare minerals!",
-          "fail_msg": "All drones were lost to the storm."
+          "text": "Option 2: Diplomacy as a Trojan Horse",
+          "details": "Establish diplomatic relations solely to gather information on their weapons. High chance of strategic advantage, but risks missing out on potential cooperation.",
+          "chance_success": 0.80,
+          "success_reward": {"pop": -2, "qol": 0},
+          "success_msg": "Intel gathered discreetly—your military now has the upper hand.",
+          "fail_msg": "Your deception was uncovered. Trust shattered permanently."
         },
         {
           "id": 3,
-          "text": "Ignore It",
-          "chance_success": 0.10,
-          "success_reward": {"pop": 0, "qol": 0},
-          "success_msg": "The storm missed us completely.",
-          "fail_msg": "Solar panels were buried. Power failed."
+          "text": "Option 3: Genuine Peace and Collaboration",
+          "details": "Set aside old Earth-based rivalries and begin honest diplomatic efforts toward shared goals and mutual survival on Mars. The best long-term choice but possibly complex.",
+          "chance_success": 0.65,
+          "success_reward": {"pop": 5, "qol": 20},
+          "success_msg": "A historic alliance formed, strengthening both colonies.",
+          "fail_msg": "Deep mistrust made negotiations collapse into hostility."
         }
       ]
     },
     {
       "id": 3,
-      "title": "Event 1: Water Crisis",
-      "description": "The water recyclers have failed. The colony is parched.",
+      "title": "Event 3: The Predicted Catastrophe",
+      "description": "A new religion, the Delphar, has become deeply rooted in society. Its priest, guided by the Martian moon Phobos, predicts an undefined catastrophe coming soon. The cult grows rapidly and may become a destabilizing force.",
       "image": "",
       "options": [
         {
           "id": 1,
-          "text": "Ration Water (Risky)",
-          "chance_success": 0.45,
-          "success_reward": {"pop": 10, "qol": -5},
-          "success_msg": "Rations held out. We survived.",
-          "fail_msg": "Riots broke out. The colony destroyed itself."
+          "text": "Option 1: Suppress the cult",
+          "details": "Discredit and forcibly suppress the Delphar religion. This neutralizes a potential threat but risks unrest among believers.",
+          "chance_success": 0.65,
+          "success_reward": {"pop": -4, "qol": 5},
+          "success_msg": "The cult was dismantled before it became dangerous.",
+          "fail_msg": "Suppression backfired. Believers revolted violently."
         },
         {
           "id": 2,
-          "text": "Repair Recyclers (Safe)",
-          "chance_success": 0.95,
-          "success_reward": {"pop": 10, "qol": 10},
-          "success_msg": "Engineers fixed it perfectly.",
-          "fail_msg": "Critical failure during repairs exploded the habitat."
+          "text": "Option 2: Stay silent",
+          "details": "Do nothing and avoid taking a stance. Risk: the cult grows stronger underground until it becomes uncontrollable.",
+          "chance_success": 0.50,
+          "success_reward": {"pop": -10, "qol": -5},
+          "success_msg": "The prediction faded from public interest. Stability returned.",
+          "fail_msg": "The cult expanded unchecked and seized influence."
         },
         {
           "id": 3,
-          "text": "Do Nothing (Trap)",
-          "chance_success": 0.15,
-          "success_reward": {"pop": -10, "qol": -5},
-          "success_msg": "We got lucky... somehow.",
-          "fail_msg": "Dehydration claimed everyone."
+          "text": "Option 3: Support the cult fully",
+          "details": "Follow the priest’s demands: sacrifice 2 scientists, 8 young women, and 88 unspecified individuals. Grants the cult immense power and risks triggering the first Martian inquisition.",
+          "chance_success": 0.65,
+          "success_reward": {"pop": -10, "qol": -50},
+          "success_msg": "The cult declared the catastrophe averted—at a horrifying cost.",
+          "fail_msg": "The sacrifices destabilized society, unleashing terror and chaos."
         }
       ]
     }

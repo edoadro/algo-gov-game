@@ -73,9 +73,12 @@ class LLMClient:
 
     def build_prompt(self, event_data, current_stats):
         """Construct prompt for LLM"""
-        options_text = "\n".join([f"{i}: {opt['text']}" for i, opt in enumerate(event_data['options'])])
+        options_text = ""
+        for i, opt in enumerate(event_data['options']):
+            details = opt.get('details', 'No details provided.')
+            options_text += f"{i}: {opt['text']}\n   Details: {details}\n"
 
-        return f"""You are managing a Mars colony. Current stats:
+        prompt = f"""You are managing a Mars colony. Current stats:
 Population: {current_stats['pop']}
 Quality of Life: {current_stats['qol']}
 
@@ -86,9 +89,19 @@ OPTIONS:
 {options_text}
 
 Choose the best option (0, 1, or 2). Respond ONLY with the number."""
+        
+        if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
+            print("\n--- LLM PROMPT ---")
+            print(prompt)
+            print("------------------\n")
+            
+        return prompt
 
     def parse_response_text(self, text):
         """Extract option number from LLM text response"""
+        if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
+            print(f"\n--- LLM RESPONSE ---\n{text}\n--------------------\n")
+
         try:
             # Clean string in case of Markdown (e.g., "**1**")
             clean_text = text.strip()

@@ -42,6 +42,7 @@ class Game:
         self.ai_decisions = []  # List of {event_index, option_index, success, stats_before, stats_after}
         self.ai_final_stats = None  # {'pop': X, 'qol': Y} or None if AI failed
         self.ai_game_over = False
+        self.player_game_over = False
 
         # RNG seed management
         self.game_seed = None
@@ -64,6 +65,7 @@ class Game:
         self.ai_decisions = []
         self.ai_final_stats = None
         self.ai_game_over = False
+        self.player_game_over = False
         self.game_seed = None
 
     def get_current_event(self):
@@ -130,6 +132,9 @@ class Game:
             }
 
             # Immediate game over, no stat update
+            if self.current_phase == 'player':
+                self.player_game_over = True
+            
             self.current_state = GameState.GAME_OVER
 
     def advance_to_next_event(self):
@@ -195,14 +200,15 @@ class Game:
         """Handle AI failing an event"""
         self.ai_game_over = True
         self.ai_final_stats = None
-        # Transition to victory state which will trigger player phase
-        self.current_state = GameState.VICTORY
+        # Transition to GAME_OVER state to show failure screen
+        self.current_state = GameState.GAME_OVER
 
     def start_player_phase(self):
         """Begin player playthrough with AI context"""
         self.current_phase = 'player'
         self.current_state = GameState.PLAYER_EVENT_DISPLAY
         self.current_event_index = 0
+        self.player_game_over = False
 
         # Reset stats
         self.stats = {
@@ -251,6 +257,7 @@ class Game:
                 'stats': self.ai_final_stats,
             },
             'player': {
+                'completed': not self.player_game_over,
                 'stats': self.stats.copy(),
             },
             'winner': self.determine_winner()
@@ -258,11 +265,28 @@ class Game:
 
     def determine_winner(self):
         """Determine winner based on total score"""
-        # If AI failed, player wins automatically
-        if self.ai_game_over:
-            return 'player'
+        # If player failed (Game Over), AI wins (unless AI also failed earlier/same time, but strict survival is key)
+        # Actually, we should check if player completed.
+        # Current logic:
+        # 1. If player failed -> AI wins (or Tie if both failed? Let's say AI wins survival contest if player dies)
+        # 2. If player survived and AI failed -> Player wins
+        # 3. If both survived -> Compare scores
 
-        # Compare scores (pop + qol)
+        # Check player failure status (we can infer from stats or state, but let's look at if we reached end)
+        player_completed = self.current_event_index >= len(self.events) and self.current_state != GameState.GAME_OVER
+
+        if not player_completed:
+             # Player died.
+             if self.ai_game_over:
+                 return 'tie' # Both died
+             else:
+                 return 'ai' # AI survived, player died
+
+        # If player survived...
+        if self.ai_game_over:
+            return 'player' # Player survived, AI died
+
+        # Both survived, compare scores
         ai_total = self.ai_final_stats['pop'] + self.ai_final_stats['qol']
         player_total = self.stats['pop'] + self.stats['qol']
 

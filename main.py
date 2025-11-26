@@ -200,8 +200,12 @@ class MarsColonyGame:
                 self.start_ai_thread()
                 self.game.current_state = GameState.AI_THINKING
             else:
-                # After choice: Player clicks "Next" to see result
-                self.game.current_state = GameState.AI_RESULT_DISPLAY
+                # After choice: Player clicks "Next" to see result or Game Over
+                if self.game.outcome_data['success']:
+                    self.game.current_state = GameState.AI_RESULT_DISPLAY
+                else:
+                    # AI failed
+                    self.game.ai_game_over_handler()
 
         elif self.game.current_state == GameState.AI_RESULT_DISPLAY:
             # Only option: "Next" (index 0)
@@ -579,7 +583,7 @@ class MarsColonyGame:
 
         # Menu options
         self.menu_options = [option['text'] for option in event['options']]
-        draw_menu_options(
+        menu_height = draw_menu_options(
             self.screen,
             self.menu_options,
             self.selected_option_index,
@@ -588,6 +592,21 @@ class MarsColonyGame:
             bottom_y,
             line_spacing=40
         )
+        
+        # Show details for selected option
+        if 0 <= self.selected_option_index < len(event['options']):
+            details = event['options'][self.selected_option_index].get('details', '')
+            if details:
+                draw_multiline_text(
+                    self.screen,
+                    details,
+                    self.font_small,
+                    COLOR_ACCENT,
+                    bottom_x,
+                    bottom_y + menu_height + 20,
+                    bottom_w
+                )
+
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_player_event_display(self):
@@ -660,7 +679,7 @@ class MarsColonyGame:
             else:
                 self.menu_options.append(option['text'])
 
-        draw_menu_options(
+        menu_height = draw_menu_options(
             self.screen,
             self.menu_options,
             self.selected_option_index,
@@ -669,6 +688,21 @@ class MarsColonyGame:
             current_y,
             line_spacing=35
         )
+
+        # Show details for selected option
+        if 0 <= self.selected_option_index < len(event['options']):
+            details = event['options'][self.selected_option_index].get('details', '')
+            if details:
+                draw_multiline_text(
+                    self.screen,
+                    details,
+                    self.font_small,
+                    COLOR_ACCENT,
+                    bottom_x,
+                    current_y + menu_height + 20,
+                    bottom_w
+                )
+
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_comparison(self):
@@ -704,11 +738,15 @@ class MarsColonyGame:
         current_y += 140
         draw_text(self.screen, "YOU", self.font_normal, COLOR_TEXT, left_x, current_y)
 
-        player_stats = comparison['player']['stats']
-        draw_text(self.screen, f"POP: {player_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
-        draw_text(self.screen, f"QOL: {player_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
-        total_player = player_stats['pop'] + player_stats['qol']
-        draw_text(self.screen, f"TOTAL: {total_player}", self.font_normal, COLOR_ACCENT, left_x, current_y + 80)
+        if comparison['player']['completed']:
+            player_stats = comparison['player']['stats']
+            draw_text(self.screen, f"POP: {player_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
+            draw_text(self.screen, f"QOL: {player_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
+            total_player = player_stats['pop'] + player_stats['qol']
+            draw_text(self.screen, f"TOTAL: {total_player}", self.font_normal, COLOR_ACCENT, left_x, current_y + 80)
+        else:
+            draw_text(self.screen, "GAME OVER", self.font_small, COLOR_TEXT, left_x, current_y + 30)
+
 
         # Winner announcement
         winner_text = {
@@ -939,13 +977,9 @@ class MarsColonyGame:
         # Record decision
         self.game.record_ai_decision(option_index, self.game.outcome_data['success'])
 
-        # Check if AI failed
-        if self.game.current_state == GameState.GAME_OVER:
-            # AI failed this event
-            self.game.ai_game_over_handler()
-        else:
-            # Show AI's choice to player (go back to event display with choice revealed)
-            self.game.current_state = GameState.AI_EVENT_DISPLAY
+        # Always show AI's choice to player (go back to event display with choice revealed)
+        # Even if failed, we show choice first, then Next leads to Game Over
+        self.game.current_state = GameState.AI_EVENT_DISPLAY
 
 
 def main():

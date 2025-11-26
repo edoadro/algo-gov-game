@@ -22,9 +22,9 @@ COLOR_BUTTON = (48, 98, 48)        # Button background
 COLOR_BUTTON_HOVER = (139, 172, 15) # Button hover
 
 # Font sizes (Reduced for smaller overall scale)
-FONT_TITLE = 26
-FONT_NORMAL = 19
-FONT_SMALL = 14
+FONT_TITLE = 29
+FONT_NORMAL = 22
+FONT_SMALL = 17
 
 
 class GameState(Enum):
