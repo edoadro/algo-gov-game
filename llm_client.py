@@ -49,11 +49,12 @@ class LLMClient:
             current_stats: Dict with 'pop', 'qol'
 
         Returns:
-            int: Option index (0, 1, or 2)
+            dict: {'choice': int, 'reason': str}
         """
+        fallback = {'choice': random.randint(0, 2), 'reason': "I made a random choice because my neural link was disrupted."}
+        
         if not self.is_available():
-            # Fallback: random choice
-            return random.randint(0, 2)
+            return fallback
 
         prompt = self.build_prompt(event_data, current_stats)
 
@@ -68,8 +69,7 @@ class LLMClient:
             
         except Exception as e:
             print(f"LLM API error: {e}")
-            # Fallback: random choice
-            return random.randint(0, 2)
+            return fallback
 
     def build_prompt(self, event_data, current_stats):
         """Construct prompt for LLM"""
@@ -88,7 +88,12 @@ EVENT: {event_data['title']}
 OPTIONS:
 {options_text}
 
-Choose the best option (0, 1, or 2). Respond ONLY with the number."""
+Choose the best option (0, 1, or 2) and provide a brief reason.
+Respond ONLY with a JSON object in this format:
+{{
+    "choice": <int>,
+    "reason": "<short explanation>"
+}}"""
         
         if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
             print("\n--- LLM PROMPT ---")
@@ -98,22 +103,37 @@ Choose the best option (0, 1, or 2). Respond ONLY with the number."""
         return prompt
 
     def parse_response_text(self, text):
-        """Extract option number from LLM text response"""
+        """Extract option and reason from LLM text response"""
+        import json
+        import re
+        
         if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
             print(f"\n--- LLM RESPONSE ---\n{text}\n--------------------\n")
 
         try:
-            # Clean string in case of Markdown (e.g., "**1**")
+            # Remove markdown code blocks if present
             clean_text = text.strip()
+            if "```json" in clean_text:
+                clean_text = clean_text.split("```json")[1].split("```")[0].strip()
+            elif "```" in clean_text:
+                clean_text = clean_text.split("```")[1].split("```")[0].strip()
             
-            # Extract first digit found
-            for char in clean_text:
+            # Parse JSON
+            data = json.loads(clean_text)
+            choice = int(data.get('choice', 0))
+            reason = data.get('reason', "No reason provided.")
+            
+            if 0 <= choice <= 2:
+                return {'choice': choice, 'reason': reason}
+                
+        except (json.JSONDecodeError, ValueError, AttributeError, TypeError) as e:
+            print(f"Error parsing LLM response: {e}")
+            # Try to salvage just a number if JSON fails
+            for char in text:
                 if char.isdigit():
                     num = int(char)
                     if 0 <= num <= 2:
-                        return num
-        except (ValueError, AttributeError, TypeError):
-            pass
+                        return {'choice': num, 'reason': "I couldn't format my reason properly, but this is my choice."}
 
-        # Fallback if parsing fails
-        return random.randint(0, 2)
+        # Fallback if parsing fails completely
+        return {'choice': random.randint(0, 2), 'reason': "Communication error. Random fallback initiated."}

@@ -77,6 +77,45 @@ def draw_multiline_text(surface, text, font, color, x, y, max_width):
     return len(lines) * line_height
 
 
+def measure_multiline_text(text, font, max_width):
+    """
+    Calculate height of text with word wrapping without drawing
+
+    Args:
+        text: string to measure
+        font: pygame font object
+        max_width: maximum width in pixels before wrapping
+
+    Returns:
+        int: Total height of text block
+    """
+    words = text.split(' ')
+    lines = []
+    current_line = []
+
+    for word in words:
+        current_line.append(word)
+        test_line = ' '.join(current_line)
+        # We need a dummy surface to measure size, but font.size() works without one usually
+        # pygame.font.Font.size returns (width, height)
+        w, h = font.size(test_line)
+
+        if w > max_width:
+            if len(current_line) == 1:
+                lines.append(test_line)
+                current_line = []
+            else:
+                current_line.pop()
+                lines.append(' '.join(current_line))
+                current_line = [word]
+
+    if current_line:
+        lines.append(' '.join(current_line))
+
+    line_height = font.get_height()
+    return len(lines) * line_height
+
+
 def draw_text_box(surface, x, y, width, height, border_width=3):
     """
     Draw a Pokemon-style bordered text box

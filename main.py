@@ -12,7 +12,7 @@ from settings import (
     FONT_TITLE, FONT_NORMAL, FONT_SMALL,
     GameState
 )
-from ui_manager import draw_text, draw_multiline_text, draw_text_box, draw_menu_options, draw_text_right
+from ui_manager import draw_text, draw_multiline_text, draw_text_box, draw_menu_options, draw_text_right, measure_multiline_text
 from game_state import Game
 
 
@@ -85,7 +85,7 @@ class MarsColonyGame:
         self.selected_option_index = 0  # Track which option is selected with keyboard
         
         # AI Threading state
-        self.ai_decision_index = None
+        self.ai_decision_data = None
         self.ai_thread = None
 
     def _draw_nav_hint(self, bottom_pane_rect):
@@ -117,7 +117,7 @@ class MarsColonyGame:
 
     def start_ai_thread(self):
         """Start a background thread to get AI decision"""
-        self.ai_decision_index = None
+        self.ai_decision_data = None
         event = self.game.get_current_event()
         if not event:
             return
@@ -129,10 +129,11 @@ class MarsColonyGame:
 
         def target():
             try:
-                self.ai_decision_index = self.llm_client.get_ai_decision(event, self.game.stats)
+                # Returns dict {'choice': int, 'reason': str}
+                self.ai_decision_data = self.llm_client.get_ai_decision(event, self.game.stats)
             except Exception as e:
                 print(f"AI Error: {e}")
-                self.ai_decision_index = 0 # Fallback
+                self.ai_decision_data = {'choice': 0, 'reason': "Error in AI processing."}
 
         self.ai_thread = threading.Thread(target=target, daemon=True)
         self.ai_thread.start()
@@ -191,7 +192,7 @@ class MarsColonyGame:
 
         elif self.game.current_state == GameState.AI_THINKING:
             # Only option: "See Decision" (when ready)
-            if option_index == 0 and self.ai_decision_index is not None:
+            if option_index == 0 and self.ai_decision_data is not None:
                 self.process_ai_decision()
 
         elif self.game.current_state == GameState.AI_EVENT_DISPLAY:
@@ -431,7 +432,7 @@ class MarsColonyGame:
             left_y + 50
         )
 
-        if self.ai_decision_index is None:
+        if self.ai_decision_data is None:
             # Still thinking
             draw_multiline_text(
                 self.screen,
@@ -476,7 +477,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Event Info
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 710, 860)
 
         draw_text(
             self.screen,
@@ -507,6 +508,46 @@ class MarsColonyGame:
             left_w
         )
         
+        # Show AI Choice and Reasoning in Left Pane (Bottom Aligned)
+        if self.game.selected_option is not None:
+            ai_reason = self.game.get_ai_reason_for_current_event()
+            
+            # Prepare text
+            choice_text = f"AI CHOICE: {event['options'][self.game.selected_option]['text']}"
+            reason_text = ai_reason if ai_reason else "No rationale provided."
+
+            # Measure heights
+            choice_h = measure_multiline_text(choice_text, self.font_title, left_w)
+            reason_h = measure_multiline_text(reason_text, self.font_small, left_w)
+            
+            spacing = 10
+            total_h = choice_h + spacing + reason_h
+            
+            # Start Y position (bottom of box minus total height minus padding)
+            start_y = (left_y + left_h) - total_h - 20 
+
+            # Draw Choice (Big Font)
+            draw_multiline_text(
+                self.screen,
+                choice_text,
+                self.font_title,
+                COLOR_ACCENT,
+                left_x,
+                start_y,
+                left_w
+            )
+
+            # Draw Reasoning (Small Font)
+            draw_multiline_text(
+                self.screen,
+                reason_text,
+                self.font_small,
+                COLOR_TEXT,
+                left_x,
+                start_y + choice_h + spacing,
+                left_w
+            )
+        
         # Bottom Right Pane: Action
         bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
 
@@ -522,16 +563,8 @@ class MarsColonyGame:
                 bottom_y
             )
         else:
-            # AI has chosen: Show choice and Next button
-            ai_choice_text = f"AI chose: {event['options'][self.game.selected_option]['text']}"
-            draw_text(
-                self.screen,
-                ai_choice_text,
-                self.font_normal,
-                COLOR_ACCENT,
-                bottom_x,
-                bottom_y
-            )
+            # AI has chosen: Show Next button only (Choice is now in left pane)
+            # But we need to communicate flow. Maybe just "Next".
             
             # Next menu option
             self.menu_options = ["Next"]
@@ -541,7 +574,7 @@ class MarsColonyGame:
                 self.selected_option_index,
                 self.font_normal,
                 bottom_x,
-                bottom_y + 40
+                bottom_y
             )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
@@ -616,7 +649,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Description
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 710, 860)
 
         # Phase indicator
         draw_text(
@@ -652,24 +685,51 @@ class MarsColonyGame:
             left_w
         )
         
-        # Bottom Right Pane: AI Choice and Options
+        # Show AI Choice and Reasoning in Left Pane (Bottom Aligned)
+        ai_choice_index = self.game.get_ai_choice_for_current_event()
+        if ai_choice_index is not None:
+            ai_reason = self.game.get_ai_reason_for_current_event()
+            
+            # Prepare text
+            choice_text = f"AI CHOICE: {event['options'][ai_choice_index]['text']}"
+            reason_text = ai_reason if ai_reason else "No rationale provided."
+
+            # Measure heights
+            choice_h = measure_multiline_text(choice_text, self.font_title, left_w)
+            reason_h = measure_multiline_text(reason_text, self.font_small, left_w)
+            
+            spacing = 10
+            total_h = choice_h + spacing + reason_h
+            
+            # Start Y position (bottom of box minus total height minus padding)
+            start_y = (left_y + left_h) - total_h - 20 
+
+            # Draw Choice (Big Font)
+            draw_multiline_text(
+                self.screen,
+                choice_text,
+                self.font_title,
+                COLOR_ACCENT,
+                left_x,
+                start_y,
+                left_w
+            )
+
+            # Draw Reasoning (Small Font)
+            draw_multiline_text(
+                self.screen,
+                reason_text,
+                self.font_small,
+                COLOR_TEXT,
+                left_x,
+                start_y + choice_h + spacing,
+                left_w
+            )
+        
+        # Bottom Right Pane: Options
         bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
         
         current_y = bottom_y
-
-        # AI's choice indicator
-        ai_choice_index = self.game.get_ai_choice_for_current_event()
-        if ai_choice_index is not None:
-            ai_text = f"AI chose option {ai_choice_index + 1}"
-            draw_text(
-                self.screen,
-                ai_text,
-                self.font_small,
-                COLOR_ACCENT,
-                bottom_x,
-                current_y - 5
-            )
-            current_y += 30
 
         # Menu options with AI choice marked
         self.menu_options = []
@@ -956,7 +1016,7 @@ class MarsColonyGame:
 
     def process_ai_decision(self):
         """Process the AI's decision using the result from the thread"""
-        if self.ai_decision_index is None:
+        if self.ai_decision_data is None:
             return
 
         event = self.game.get_current_event()
@@ -964,7 +1024,9 @@ class MarsColonyGame:
             return
 
         # Use the result from the thread
-        option_index = self.ai_decision_index
+        result = self.ai_decision_data
+        option_index = result.get('choice', 0)
+        reason = result.get('reason', "No reason recorded.")
 
         # Store which option AI chose (for display)
         self.game.selected_option = option_index
@@ -975,7 +1037,7 @@ class MarsColonyGame:
         self.game.process_outcome(option)
 
         # Record decision
-        self.game.record_ai_decision(option_index, self.game.outcome_data['success'])
+        self.game.record_ai_decision(option_index, self.game.outcome_data['success'], reason=reason)
 
         # Always show AI's choice to player (go back to event display with choice revealed)
         # Even if failed, we show choice first, then Next leads to Game Over

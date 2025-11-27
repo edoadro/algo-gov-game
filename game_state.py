@@ -173,11 +173,12 @@ class Game:
         self.ai_decisions = []
         self.ai_game_over = False
 
-    def record_ai_decision(self, option_index, success):
+    def record_ai_decision(self, option_index, success, reason=""):
         """Store AI's decision and outcome"""
         self.ai_decisions.append({
             'event_index': self.current_event_index,
             'option_index': option_index,
+            'reason': reason,
             'success': success,
             'stats_before': self.old_stats.copy(),
             'stats_after': self.stats.copy() if success else None
@@ -224,6 +225,13 @@ class Game:
         for decision in self.ai_decisions:
             if decision['event_index'] == self.current_event_index:
                 return decision['option_index']
+        return None
+
+    def get_ai_reason_for_current_event(self):
+        """Get AI's reasoning for current event"""
+        for decision in self.ai_decisions:
+            if decision['event_index'] == self.current_event_index:
+                return decision.get('reason', "")
         return None
 
     def player_select_option(self, option_index):
