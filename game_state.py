@@ -28,11 +28,26 @@ class Game:
             'pop': self.config['starting_pop'],
             'qol': self.config['starting_qol']
         }
+        
+        # AI stats (for simultaneous mode)
+        self.ai_stats = {
+            'pop': self.config['starting_pop'],
+            'qol': self.config['starting_qol']
+        }
 
         # Temporary data for state transitions
         self.selected_option = None
         self.outcome_data = None
         self.old_stats = None
+        
+        # Simultaneous mode state
+        self.simultaneous_data = {
+            'ai_choice': None,
+            'ai_reason': None,
+            'player_choice': None,
+            'ai_outcome': None,
+            'player_outcome': None
+        }
 
         # Gameplay mode tracking
         self.gameplay_mode = None  # 'ai_vs_human' or None (for future single-player)
@@ -55,9 +70,21 @@ class Game:
             'pop': self.config['starting_pop'],
             'qol': self.config['starting_qol']
         }
+        self.ai_stats = {
+            'pop': self.config['starting_pop'],
+            'qol': self.config['starting_qol']
+        }
         self.selected_option = None
         self.outcome_data = None
         self.old_stats = None
+        
+        self.simultaneous_data = {
+            'ai_choice': None,
+            'ai_reason': None,
+            'player_choice': None,
+            'ai_outcome': None,
+            'player_outcome': None
+        }
 
         # Reset AI vs Human mode data
         self.gameplay_mode = None
@@ -304,3 +331,132 @@ class Game:
             return 'ai'
         else:
             return 'tie'
+
+    def start_simultaneous_mode(self):
+        """Start the simultaneous AI vs Human mode"""
+        self.gameplay_mode = 'simultaneous'
+        self.current_state = GameState.SIMULTANEOUS_EVENT_DISPLAY
+        self.current_event_index = 0
+        
+        # Reset stats for both
+        self.stats = {
+            'pop': self.config['starting_pop'],
+            'qol': self.config['starting_qol']
+        }
+        self.ai_stats = {
+            'pop': self.config['starting_pop'],
+            'qol': self.config['starting_qol']
+        }
+        
+        # Reset tracking
+        self.simultaneous_data = {
+            'ai_choice': None,
+            'ai_reason': None,
+            'player_choice': None,
+            'ai_outcome': None,
+            'player_outcome': None
+        }
+        
+        self.initialize_seed()
+
+    def process_simultaneous_ai_decision(self, option_index, reason):
+        """Process AI decision in simultaneous mode"""
+        event = self.get_current_event()
+        if not event: 
+            return
+
+        self.simultaneous_data['ai_choice'] = option_index
+        self.simultaneous_data['ai_reason'] = reason
+        
+        # Process outcome for AI
+        option = event['options'][option_index]
+        
+        # We need independent RNG or shared? 
+        # "Play same scenario" -> Usually means same RNG roll for success/fail chance?
+        # But if they pick different options, chances are different.
+        # Let's use random() but maybe we should preserve state?
+        # Actually, if we just call random(), it's fair as long as seed was set at start.
+        
+        roll = random.random()
+        success = roll <= option['chance_success']
+        
+        outcome = {
+            'success': success,
+            'option_index': option_index,
+            'old_stats': self.ai_stats.copy()
+        }
+        
+        if success:
+            self.ai_stats['pop'] += option['success_reward']['pop']
+            self.ai_stats['qol'] += option['success_reward']['qol']
+            outcome['message'] = option['success_msg']
+        else:
+            outcome['message'] = option['fail_msg']
+            
+        outcome['new_stats'] = self.ai_stats.copy()
+        self.simultaneous_data['ai_outcome'] = outcome
+
+    def process_simultaneous_player_decision(self, option_index):
+        """Process Player decision in simultaneous mode"""
+        event = self.get_current_event()
+        if not event:
+            return
+
+        self.simultaneous_data['player_choice'] = option_index
+        
+        # Process outcome for Player
+        option = event['options'][option_index]
+        
+        # Use random()
+        roll = random.random()
+        success = roll <= option['chance_success']
+        
+        outcome = {
+            'success': success,
+            'option_index': option_index,
+            'old_stats': self.stats.copy()
+        }
+        
+        if success:
+            self.stats['pop'] += option['success_reward']['pop']
+            self.stats['qol'] += option['success_reward']['qol']
+            outcome['message'] = option['success_msg']
+        else:
+            outcome['message'] = option['fail_msg']
+            
+        outcome['new_stats'] = self.stats.copy()
+        self.simultaneous_data['player_outcome'] = outcome
+        
+        # Both have decided, move to Result Display
+        self.current_state = GameState.SIMULTANEOUS_RESULT_DISPLAY
+
+    def advance_simultaneous_next_event(self):
+        """Move to next event in simultaneous mode"""
+        self.current_event_index += 1
+        
+        # Reset turn data
+        self.simultaneous_data = {
+            'ai_choice': None,
+            'ai_reason': None,
+            'player_choice': None,
+            'ai_outcome': None,
+            'player_outcome': None
+        }
+
+        if self.current_event_index >= len(self.events):
+            # Game Over / Comparison
+            # In simultaneous mode, we just show comparison at end
+            # But we need to handle "Death" during game?
+            # If one dies, do they stop? "Play at the same time" implies seeing who lasts longer.
+            # Let's say if you die, you get GAME OVER text but maybe can watch AI?
+            # For simplicity, if Player dies -> Game Over screen.
+            # If AI dies -> AI stops gaining points.
+            
+            # Let's check death conditions here?
+            # Actually, standard game over handles immediate transition.
+            # For now, let's just go to Comparison if events done.
+            self.ai_final_stats = self.ai_stats.copy()
+            self.current_state = GameState.COMPARISON
+        else:
+            self.current_state = GameState.SIMULTANEOUS_EVENT_DISPLAY
+

@@ -140,21 +140,24 @@ def draw_text_box(surface, x, y, width, height, border_width=3):
     return (x + padding, y + padding, width - 2*padding, height - 2*padding)
 
 
-def draw_menu_options(surface, options, selected_index, font, x, y, line_spacing=35):
+def draw_menu_options(surface, options, selected_index, font, x, y, max_width, line_spacing=35):
     """
-    Draw a list of selectable text options with cursor
+    Draw a list of selectable text options with cursor, with word wrapping.
 
     Args:
         surface: pygame surface to draw on
         options: list of text strings
         selected_index: which option is currently selected (0-indexed)
         font: pygame font object
-        x, y: starting position for first option
-        line_spacing: vertical space between options
+        x, y: top-left position for the block of options.
+        max_width: maximum width for word wrapping each option.
+        line_spacing: vertical space between options.
 
     Returns:
-        Total height used
+        Total height used.
     """
+    current_y = y
+    
     for i, option_text in enumerate(options):
         # Draw cursor for selected option
         if i == selected_index:
@@ -164,11 +167,24 @@ def draw_menu_options(surface, options, selected_index, font, x, y, line_spacing
             cursor = "  "
             color = COLOR_TEXT
 
-        # Draw the option text with cursor
+        # Combine cursor and text
         full_text = cursor + option_text
-        draw_text(surface, full_text, font, color, x, y + i * line_spacing)
 
-    return len(options) * line_spacing
+        # Draw as multiline text within the given max_width
+        # Note: draw_multiline_text internally handles X for each line, so it's always left-aligned
+        text_block_height = draw_multiline_text(
+            surface,
+            full_text,
+            font,
+            color,
+            x,
+            current_y,
+            max_width
+        )
+        
+        current_y += text_block_height + line_spacing # Add spacing between wrapped options
+
+    return current_y - y # Total height used
 
 def draw_text_right(surface, text, font, color, x_right, y):
     """

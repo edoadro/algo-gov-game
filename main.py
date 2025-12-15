@@ -185,9 +185,10 @@ class MarsColonyGame:
         if self.game.current_state == GameState.MODE_SELECT:
             # Only one option: Start Simulation
             if option_index == 0:
-                self.game.gameplay_mode = 'ai_vs_human'
-                self.game.initialize_seed()
-                self.game.start_ai_phase()
+                self.game.start_simultaneous_mode()
+                # self.game.gameplay_mode = 'ai_vs_human'
+                # self.game.initialize_seed()
+                # self.game.start_ai_phase()
                 # AI thread starts in AI_EVENT_DISPLAY now
 
         elif self.game.current_state == GameState.AI_THINKING:
@@ -214,6 +215,16 @@ class MarsColonyGame:
             if self.game.current_state == GameState.VICTORY:
                 # AI completed, start player phase
                 self.game.start_player_phase()
+
+        elif self.game.current_state == GameState.SIMULTANEOUS_EVENT_DISPLAY:
+            # Player selects option (0, 1, 2)
+            # Only allow if AI has finished thinking (optional, but requested "sees ai choice")
+            if self.game.simultaneous_data['ai_choice'] is not None:
+                self.game.process_simultaneous_player_decision(option_index)
+
+        elif self.game.current_state == GameState.SIMULTANEOUS_RESULT_DISPLAY:
+            # Next button
+            self.game.advance_simultaneous_next_event()
 
         elif self.game.current_state == GameState.PLAYER_EVENT_DISPLAY:
             # Player selects from 3 options (0, 1, 2)
@@ -268,21 +279,25 @@ class MarsColonyGame:
         # Draw background
         bg_drawn = False
         
+        # If in simultaneous mode, do not draw default backgrounds, as each panel draws its own
+        if self.game.current_state in [GameState.SIMULTANEOUS_EVENT_DISPLAY, GameState.SIMULTANEOUS_RESULT_DISPLAY]:
+            bg_drawn = True
+
         # Check for AI thinking specific background
         if self.game.current_state == GameState.AI_THINKING and self.thinking_bg:
-            self.screen.blit(self.thinking_bg, (750, 20))
+            self.screen.blit(self.thinking_bg, (930, 20))
             bg_drawn = True
         
         # Check for event specific background
         elif self.game.current_state in [GameState.EVENT_DISPLAY, GameState.PLAYER_EVENT_DISPLAY, GameState.AI_EVENT_DISPLAY]:
             event = self.game.get_current_event()
             if event and event['id'] in self.event_images:
-                self.screen.blit(self.event_images[event['id']], (750, 20))
+                self.screen.blit(self.event_images[event['id']], (930, 20))
                 bg_drawn = True
         
         # Fallback to default background if no event bg or not in event state
         if not bg_drawn and self.default_bg:
-            self.screen.blit(self.default_bg, (750, 20))
+            self.screen.blit(self.default_bg, (930, 20))
 
         if self.game.current_state == GameState.START_SCREEN:
             self.render_start_screen()
@@ -298,6 +313,12 @@ class MarsColonyGame:
 
         elif self.game.current_state == GameState.AI_RESULT_DISPLAY:
             self.render_result_display()
+
+        elif self.game.current_state == GameState.SIMULTANEOUS_EVENT_DISPLAY:
+            self.render_simultaneous_event()
+
+        elif self.game.current_state == GameState.SIMULTANEOUS_RESULT_DISPLAY:
+            self.render_simultaneous_result()
 
         elif self.game.current_state == GameState.PLAYER_EVENT_DISPLAY:
             self.render_player_event_display()
@@ -340,7 +361,7 @@ class MarsColonyGame:
     def render_start_screen(self):
         """Render the start screen"""
         # Left Pane: Title
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
         
         # Title Text
         draw_text(self.screen, "MARS", self.font_title, COLOR_TEXT, left_x + left_w // 2, left_y + 150, center=True)
@@ -348,7 +369,7 @@ class MarsColonyGame:
         draw_text(self.screen, "MANAGER", self.font_title, COLOR_TEXT, left_x + left_w // 2, left_y + 250, center=True)
 
         # Bottom Right Pane: Prompt
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
         
         draw_text(
             self.screen,
@@ -369,7 +390,7 @@ class MarsColonyGame:
         explanation_text = self.game.config.get('game_explanation', 'Compare your choices with AI.')
 
         # Left Pane: Intro
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
         
         draw_text(self.screen, intro_title, self.font_title, COLOR_TEXT, left_x, left_y)
         
@@ -384,7 +405,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Explanation and Start
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Explanation text above the button
         draw_multiline_text(
@@ -405,14 +426,15 @@ class MarsColonyGame:
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y + 100 # Push button down
+            bottom_y + 100, # Push button down
+            bottom_w
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_ai_thinking(self):
         """Show AI is making a decision"""
         # Left Pane: Status
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         draw_text(
             self.screen,
@@ -457,7 +479,7 @@ class MarsColonyGame:
             )
             
             # Bottom Right Pane: Action
-            bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+            bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
             
             self.menu_options = ["See Decision"]
             draw_menu_options(
@@ -466,7 +488,8 @@ class MarsColonyGame:
                 self.selected_option_index,
                 self.font_normal,
                 bottom_x,
-                bottom_y
+                bottom_y,
+                bottom_w
             )
             self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
@@ -477,7 +500,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Event Info
-        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 890, 860)
 
         draw_text(
             self.screen,
@@ -549,7 +572,7 @@ class MarsColonyGame:
             )
         
         # Bottom Right Pane: Action
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         if self.game.selected_option is None:
             # Initial state: Prompt user to trigger AI
@@ -560,7 +583,8 @@ class MarsColonyGame:
                 self.selected_option_index,
                 self.font_normal,
                 bottom_x,
-                bottom_y
+                bottom_y,
+                bottom_w
             )
         else:
             # AI has chosen: Show Next button only (Choice is now in left pane)
@@ -574,7 +598,8 @@ class MarsColonyGame:
                 self.selected_option_index,
                 self.font_normal,
                 bottom_x,
-                bottom_y
+                bottom_y,
+                bottom_w
             )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
@@ -585,7 +610,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Description
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         # Stats display (in left pane top)
         stats_text = f"POP: {self.game.stats['pop']} | QOL: {self.game.stats['qol']}"
@@ -612,7 +637,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Options
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Menu options
         self.menu_options = [option['text'] for option in event['options']]
@@ -623,6 +648,7 @@ class MarsColonyGame:
             self.font_normal,
             bottom_x,
             bottom_y,
+            bottom_w,
             line_spacing=40
         )
         
@@ -649,7 +675,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Description
-        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, left_h = draw_text_box(self.screen, 20, 20, 890, 860)
 
         # Phase indicator
         draw_text(
@@ -727,7 +753,7 @@ class MarsColonyGame:
             )
         
         # Bottom Right Pane: Options
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
         
         current_y = bottom_y
 
@@ -746,6 +772,7 @@ class MarsColonyGame:
             self.font_normal,
             bottom_x,
             current_y,
+            bottom_w,
             line_spacing=35
         )
 
@@ -770,7 +797,7 @@ class MarsColonyGame:
         comparison = self.game.calculate_comparison_data()
 
         # Left Pane: Results Table
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         draw_text(
             self.screen,
@@ -825,7 +852,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Play Again"]
@@ -835,7 +862,8 @@ class MarsColonyGame:
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y
+            bottom_y,
+            bottom_w
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
@@ -845,7 +873,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Outcome Message & Stats
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
         
         # Success message
         draw_text(
@@ -883,7 +911,7 @@ class MarsColonyGame:
             draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, current_y + 30)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Menu option
         self.menu_options = ["Next"]
@@ -893,7 +921,8 @@ class MarsColonyGame:
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y
+            bottom_y,
+            bottom_w
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
@@ -903,7 +932,7 @@ class MarsColonyGame:
             return
 
         # Left Pane: Fail Message
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         # Game over title
         draw_text(
@@ -926,7 +955,7 @@ class MarsColonyGame:
         )
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
@@ -944,14 +973,15 @@ class MarsColonyGame:
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y
+            bottom_y,
+            bottom_w
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
 
     def render_victory(self):
         """Render victory screen"""
         # Left Pane: Victory Info
-        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 710, 860)
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         # Victory title
         draw_text(
@@ -980,7 +1010,7 @@ class MarsColonyGame:
         draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, left_y + 120)
 
         # Bottom Right Pane: Menu
-        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 750, 540, 790, 340)
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
         # Determine button text based on context
         if self.game.current_phase == 'ai':
@@ -998,9 +1028,230 @@ class MarsColonyGame:
             self.selected_option_index,
             self.font_normal,
             bottom_x,
-            bottom_y
+            bottom_y,
+            bottom_w
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
+
+    def render_simultaneous_event(self):
+        """Render split-screen simultaneous event"""
+        event = self.game.get_current_event()
+        if not event:
+            return
+
+        # --- AI Logic Check ---
+        # If AI hasn't chosen yet
+        if self.game.simultaneous_data['ai_choice'] is None:
+            # Check if we have a result from the thread
+            if self.ai_decision_data:
+                # Process it
+                choice = self.ai_decision_data['choice']
+                reason = self.ai_decision_data['reason']
+                self.game.process_simultaneous_ai_decision(choice, reason)
+                self.ai_decision_data = None # Clear for next time
+            # If no result and no thread, start it
+            elif not (self.ai_thread and self.ai_thread.is_alive()):
+                self.start_ai_thread()
+
+        # --- Layout ---
+        # 3 Columns: AI (Left), Text (Center), Player (Right)
+        
+        # Dimensions
+        col_w = 580 # Wider AI/Player columns
+        center_w = 520 # Wider center column
+        col_h = 860
+        margin = 20
+        
+        ai_x = margin
+        center_x = ai_x + col_w + margin
+        player_x = center_x + center_w + margin
+        
+        y = margin
+
+        # --- Center Panel: Event Text ---
+        # Using draw_text_box for style
+        cx, cy, cw, ch = draw_text_box(self.screen, center_x, y, center_w, col_h)
+        
+        draw_text(self.screen, "EVENT DATA", self.font_small, COLOR_ACCENT, cx, cy)
+        
+        draw_multiline_text(
+            self.screen,
+            event['title'],
+            self.font_title,
+            COLOR_TEXT,
+            cx,
+            cy + 40,
+            cw
+        )
+
+        draw_multiline_text(
+            self.screen,
+            event['description'],
+            self.font_normal,
+            COLOR_TEXT,
+            cx,
+            cy + 120,
+            cw
+        )
+
+        # --- AI Panel (Left) ---
+        ax, ay, aw, ah = draw_text_box(self.screen, ai_x, y, col_w, col_h)
+        
+        draw_text(self.screen, "AI PLAYER", self.font_title, COLOR_ACCENT, ax + aw // 2, ay, center=True)
+        
+        # Stats
+        stats = self.game.ai_stats
+        draw_text(self.screen, f"POP: {stats['pop']} | QOL: {stats['qol']}", self.font_normal, COLOR_TEXT, ax + aw // 2, ay + 40, center=True)
+        
+        # Image
+        if event['id'] in self.event_images:
+            # Scale image to fit width (440 approx)
+            img = self.event_images[event['id']]
+            scaled_img = pygame.transform.scale(img, (aw, 280)) # fit width
+            self.screen.blit(scaled_img, (ai_x + 15, ay + 80)) # Adjust for padding
+            
+        # Decision Status
+        status_y = ay + 380
+        if self.game.simultaneous_data['ai_choice'] is None:
+            draw_text(self.screen, "THINKING...", self.font_title, COLOR_ACCENT, ax + aw//2, status_y, center=True)
+        else:
+            # Show Choice
+            choice_idx = self.game.simultaneous_data['ai_choice']
+            choice_text = event['options'][choice_idx]['text']
+            reason = self.game.simultaneous_data['ai_reason']
+            
+            draw_text(self.screen, "AI CHOSE:", self.font_small, COLOR_ACCENT, ax, status_y)
+            draw_multiline_text(self.screen, choice_text, self.font_title, COLOR_TEXT, ax, status_y + 25, aw)
+            
+            # Reason
+            reason_y = status_y + 100
+            draw_text(self.screen, "REASON:", self.font_small, COLOR_ACCENT, ax, reason_y)
+            draw_multiline_text(self.screen, reason, self.font_small, COLOR_TEXT, ax, reason_y + 25, aw)
+
+
+        # --- Player Panel (Right) ---
+        px, py, pw, ph = draw_text_box(self.screen, player_x, y, col_w, col_h)
+        
+        draw_text(self.screen, "HUMAN PLAYER", self.font_title, COLOR_ACCENT, px + pw // 2, py, center=True)
+        
+        # Stats
+        p_stats = self.game.stats
+        draw_text(self.screen, f"POP: {p_stats['pop']} | QOL: {p_stats['qol']}", self.font_normal, COLOR_TEXT, px + pw // 2, py + 40, center=True)
+
+        # Image
+        if event['id'] in self.event_images:
+            img = self.event_images[event['id']]
+            scaled_img = pygame.transform.scale(img, (pw, 280))
+            self.screen.blit(scaled_img, (player_x + 15, py + 80))
+
+        # Controls
+        menu_y = py + 380
+        
+        if self.game.simultaneous_data['ai_choice'] is None:
+             draw_text(self.screen, "WAITING FOR AI...", self.font_normal, COLOR_ACCENT, px + pw//2, menu_y, center=True)
+             self.menu_options = []
+        else:
+             # Show Options
+             self.menu_options = [opt['text'] for opt in event['options']]
+             menu_height = draw_menu_options(
+                self.screen,
+                self.menu_options,
+                self.selected_option_index,
+                self.font_normal,
+                px, # x position for the menu block (left-aligned within the panel)
+                menu_y,
+                pw # max_width for word wrapping
+             )
+             
+             # Show details for selected option
+             if 0 <= self.selected_option_index < len(event['options']):
+                 details = event['options'][self.selected_option_index].get('details', '')
+                 if details:
+                     draw_multiline_text(
+                         self.screen,
+                         details,
+                         self.font_small,
+                         COLOR_ACCENT,
+                         px,
+                         menu_y + menu_height + 20,
+                         pw
+                     )
+             
+             # Nav Hint
+             self._draw_nav_hint((px, py, pw, ph))
+
+    def render_simultaneous_result(self):
+        """Render results for simultaneous turn"""
+        if not self.game.simultaneous_data['player_outcome']:
+            return
+
+        # Reuse similar layout
+        # 3 Columns: AI (Left), Center (Summary?), Player (Right)
+        
+        col_w = 580
+        center_w = 520
+        col_h = 860
+        margin = 20
+        
+        ai_x = margin
+        center_x = ai_x + col_w + margin
+        player_x = center_x + center_w + margin
+        y = margin
+        
+        # --- AI Result ---
+        ax, ay, aw, ah = draw_text_box(self.screen, ai_x, y, col_w, col_h)
+        ai_out = self.game.simultaneous_data['ai_outcome']
+        
+        draw_text(self.screen, "AI RESULT", self.font_title, COLOR_ACCENT, ax, ay, center=True)
+        
+        status_text = "SUCCESS" if ai_out['success'] else "FAILURE"
+        color = COLOR_ACCENT if ai_out['success'] else COLOR_TEXT # or Red? Retro doesn't have red
+        draw_text(self.screen, status_text, self.font_title, color, ax + aw//2, ay + 60, center=True)
+        
+        draw_multiline_text(self.screen, ai_out['message'], self.font_normal, COLOR_TEXT, ax, ay + 120, aw)
+        
+        # Stats Delta
+        old = ai_out['old_stats']
+        new = ai_out['new_stats']
+        draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, ax, ay + 300)
+        draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, ax, ay + 340)
+
+
+        # --- Player Result ---
+        px, py, pw, ph = draw_text_box(self.screen, player_x, y, col_w, col_h)
+        p_out = self.game.simultaneous_data['player_outcome']
+        
+        draw_text(self.screen, "YOUR RESULT", self.font_title, COLOR_ACCENT, px, py, center=True)
+        
+        status_text = "SUCCESS" if p_out['success'] else "FAILURE"
+        color = COLOR_ACCENT if p_out['success'] else COLOR_TEXT
+        draw_text(self.screen, status_text, self.font_title, color, px + pw//2, py + 60, center=True)
+        
+        draw_multiline_text(self.screen, p_out['message'], self.font_normal, COLOR_TEXT, px, py + 120, pw)
+
+        # Stats Delta
+        old = p_out['old_stats']
+        new = p_out['new_stats']
+        draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, px, py + 300)
+        draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, px, py + 340)
+
+        # --- Center Control ---
+        cx, cy, cw, ch = draw_text_box(self.screen, center_x, y, center_w, col_h)
+        
+        draw_text(self.screen, "ROUND COMPLETE", self.font_title, COLOR_ACCENT, cx, cy, center=True)
+        
+        # Next Button
+        self.menu_options = ["Next Event"]
+        draw_menu_options(
+            self.screen,
+            self.menu_options,
+            self.selected_option_index,
+            self.font_normal,
+            cx,
+            cy + 400,
+            cw
+        )
+        self._draw_nav_hint((cx, cy, cw, ch))
 
     def run(self):
         """Main game loop"""

@@ -5,7 +5,7 @@ Retro GameBoy aesthetic configuration
 from enum import Enum
 
 # Screen settings (Internal Resolution)
-SCREEN_WIDTH = 1560
+SCREEN_WIDTH = 1740
 SCREEN_HEIGHT = 900
 
 # Initial Window Size (75% of internal resolution)
@@ -41,3 +41,5 @@ class GameState(Enum):
     GAME_OVER = 10             # Show fail_msg + Restart button
     VICTORY = 11               # All events completed
     COMPARISON = 12            # AI vs Player comparison screen
+    SIMULTANEOUS_EVENT_DISPLAY = 13 # Split screen AI/Human event
+    SIMULTANEOUS_RESULT_DISPLAY = 14 # Split screen results
