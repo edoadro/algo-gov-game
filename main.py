@@ -87,6 +87,7 @@ class MarsColonyGame:
         # AI Threading state
         self.ai_decision_data = None
         self.ai_thread = None
+        self.game_session_id = 0
 
     def _draw_nav_hint(self, bottom_pane_rect):
         """Draw navigation hint in the bottom right of the given rectangle."""
@@ -127,13 +128,16 @@ class MarsColonyGame:
             from llm_client import LLMClient
             self.llm_client = LLMClient(provider='gemini')
 
+        current_session_id = self.game_session_id
+
         def target():
             try:
                 # Returns dict {'choice': int, 'reason': str}
-                self.ai_decision_data = self.llm_client.get_ai_decision(event, self.game.stats)
+                result = self.llm_client.get_ai_decision(event, self.game.stats)
+                self.ai_decision_data = {'result': result, 'session_id': current_session_id}
             except Exception as e:
                 print(f"AI Error: {e}")
-                self.ai_decision_data = {'choice': 0, 'reason': "Error in AI processing."}
+                self.ai_decision_data = {'result': {'choice': 0, 'reason': "Error in AI processing."}, 'session_id': current_session_id}
 
         self.ai_thread = threading.Thread(target=target, daemon=True)
         self.ai_thread.start()
@@ -186,6 +190,8 @@ class MarsColonyGame:
             # Only one option: Start Simulation
             if option_index == 0:
                 self.game.start_simultaneous_mode()
+                self.ai_decision_data = None # Clear stale data
+                self.game_session_id += 1 # Invalidate old threads
                 # self.game.gameplay_mode = 'ai_vs_human'
                 # self.game.initialize_seed()
                 # self.game.start_ai_phase()
@@ -220,7 +226,12 @@ class MarsColonyGame:
             # Player selects option (0, 1, 2)
             # Only allow if AI has finished thinking (optional, but requested "sees ai choice")
             if self.game.simultaneous_data['ai_choice'] is not None:
-                self.game.process_simultaneous_player_decision(option_index)
+                if self.game.player_game_over:
+                    # Player is eliminated, button is "Continue Watching"
+                    if option_index == 0:
+                        self.game.skip_simultaneous_player_turn()
+                else:
+                    self.game.process_simultaneous_player_decision(option_index)
 
         elif self.game.current_state == GameState.SIMULTANEOUS_RESULT_DISPLAY:
             # Next button
@@ -954,6 +965,20 @@ class MarsColonyGame:
             left_w
         )
 
+        # Draw result image if available
+        result_image_path = self.game.outcome_data.get('result_image')
+        if result_image_path:
+            img = self.load_and_scale_image(result_image_path)
+            if img:
+                 # Position image in left pane
+                 # Scale image to fit width (approx 850)
+                 # Re-scale logic: load_and_scale_image scales to 790x500 by default (for right pane).
+                 # We want it in left pane (890 wide).
+                 # Let's just re-scale it or use it as is?
+                 # load_and_scale_image returns 790x500.
+                 # Left pane is 890 wide. 790 fits.
+                 self.screen.blit(img, (left_x + 50, left_y + 300))
+
         # Bottom Right Pane: Menu
         bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
 
@@ -1042,16 +1067,24 @@ class MarsColonyGame:
         # --- AI Logic Check ---
         # If AI hasn't chosen yet
         if self.game.simultaneous_data['ai_choice'] is None:
-            # Check if we have a result from the thread
-            if self.ai_decision_data:
-                # Process it
-                choice = self.ai_decision_data['choice']
-                reason = self.ai_decision_data['reason']
-                self.game.process_simultaneous_ai_decision(choice, reason)
-                self.ai_decision_data = None # Clear for next time
-            # If no result and no thread, start it
-            elif not (self.ai_thread and self.ai_thread.is_alive()):
-                self.start_ai_thread()
+            # Check if AI is already eliminated
+            if self.game.ai_game_over:
+                 self.game.simultaneous_data['ai_choice'] = -1
+                 self.game.simultaneous_data['ai_reason'] = "Eliminated."
+                 self.game.simultaneous_data['ai_outcome'] = {'success': False, 'message': "ELIMINATED", 'old_stats': self.game.ai_stats, 'new_stats': self.game.ai_stats}
+            else:
+                # Normal AI processing
+                # Check if we have a result from the thread
+                if self.ai_decision_data and self.ai_decision_data.get('session_id') == self.game_session_id:
+                    # Process it
+                    result = self.ai_decision_data['result']
+                    choice = result['choice']
+                    reason = result['reason']
+                    self.game.process_simultaneous_ai_decision(choice, reason)
+                    self.ai_decision_data = None # Clear for next time
+                # If no result and no thread, start it
+                elif not (self.ai_thread and self.ai_thread.is_alive()):
+                    self.start_ai_thread()
 
         # --- Layout ---
         # 3 Columns: AI (Left), Text (Center), Player (Right)
@@ -1112,21 +1145,61 @@ class MarsColonyGame:
             
         # Decision Status
         status_y = ay + 380
+        
+        # Determine if we should reveal the outcome (only after player chooses or if player is out)
+        # Actually, "player choice" happens instantly when clicking button. 
+        # But here we are in EVENT_DISPLAY. 
+        # The flow is: 
+        # 1. EVENT_DISPLAY (Thinking -> AI Choice Locked).
+        # 2. Player clicks option -> Game state updates to RESULT_DISPLAY.
+        # So in EVENT_DISPLAY, we only show "AI CHOSE: Option X". We should NOT show "ELIMINATED" yet?
+        # BUT: The user asked "users sees ai choice and can change for its runtime".
+        # If AI failed, does the user SEE that it failed? 
+        # User said: "show failure of ai after player choice only".
+        # So here, we should just show the CHOICE.
+        
         if self.game.simultaneous_data['ai_choice'] is None:
             draw_text(self.screen, "THINKING...", self.font_title, COLOR_ACCENT, ax + aw//2, status_y, center=True)
         else:
-            # Show Choice
+            # AI has chosen. Even if eliminated internally, we masquerade it as just a choice here.
             choice_idx = self.game.simultaneous_data['ai_choice']
-            choice_text = event['options'][choice_idx]['text']
-            reason = self.game.simultaneous_data['ai_reason']
+            # If AI is eliminated, we might have set choice to -1. Handle that.
+            if choice_idx == -1:
+                 # It was eliminated previously? Or just now?
+                 # If just now (in this turn), we should show the choice that KILLED it?
+                 # Ah, my previous logic set choice=-1 if ai_game_over.
+                 # We need to know WHAT it chose to die.
+                 # Let's rely on the fact that if it died THIS turn, we might want to show the choice.
+                 # But wait, if ai_game_over is True, I forced choice to -1 in the logic above.
+                 # I should fix that logic to preserve the fatal choice if possible, or just say "Eliminated" if it was a previous turn.
+                 pass
             
-            draw_text(self.screen, "AI CHOSE:", self.font_small, COLOR_ACCENT, ax, status_y)
-            draw_multiline_text(self.screen, choice_text, self.font_title, COLOR_TEXT, ax, status_y + 25, aw)
+            # Revised logic:
+            # If AI is ELIMINATED from a *previous* turn, show ELIMINATED.
+            # If AI is ELIMINATED *this* turn, show the fatal choice (and reveal death in Result screen).
             
-            # Reason
-            reason_y = status_y + 100
-            draw_text(self.screen, "REASON:", self.font_small, COLOR_ACCENT, ax, reason_y)
-            draw_multiline_text(self.screen, reason, self.font_small, COLOR_TEXT, ax, reason_y + 25, aw)
+            # How to know if it was previous? 
+            # We can check if ai_choice is -1 (which I set for 'already eliminated').
+            
+            if choice_idx == -1:
+                draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, ax + aw//2, status_y, center=True)
+                if self.game.ai_elimination_image:
+                     img = self.load_and_scale_image(self.game.ai_elimination_image)
+                     if img:
+                         scaled_img = pygame.transform.scale(img, (aw, 280))
+                         self.screen.blit(scaled_img, (ai_x + 15, ay + 80))
+            else:
+                # Show Choice (Normal or Fatal)
+                choice_text = event['options'][choice_idx]['text']
+                reason = self.game.simultaneous_data['ai_reason']
+                
+                draw_text(self.screen, "AI CHOSE:", self.font_small, COLOR_ACCENT, ax, status_y)
+                draw_multiline_text(self.screen, choice_text, self.font_title, COLOR_TEXT, ax, status_y + 25, aw)
+                
+                # Reason
+                reason_y = status_y + 100
+                draw_text(self.screen, "REASON:", self.font_small, COLOR_ACCENT, ax, reason_y)
+                draw_multiline_text(self.screen, reason, self.font_small, COLOR_TEXT, ax, reason_y + 25, aw)
 
 
         # --- Player Panel (Right) ---
@@ -1150,6 +1223,29 @@ class MarsColonyGame:
         if self.game.simultaneous_data['ai_choice'] is None:
              draw_text(self.screen, "WAITING FOR AI...", self.font_normal, COLOR_ACCENT, px + pw//2, menu_y, center=True)
              self.menu_options = []
+        elif self.game.player_game_over:
+             draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, px + pw//2, menu_y, center=True)
+             
+             # Draw elimination image if available
+             if self.game.player_elimination_image:
+                 img = self.load_and_scale_image(self.game.player_elimination_image)
+                 if img:
+                     # Scale to fit panel width (approx 440)
+                     scaled_img = pygame.transform.scale(img, (pw, 280))
+                     self.screen.blit(scaled_img, (player_x + 15, py + 80))
+             
+             # Continue button
+             self.menu_options = ["Continue Watching"]
+             draw_menu_options(
+                self.screen,
+                self.menu_options,
+                self.selected_option_index,
+                self.font_normal,
+                px,
+                menu_y + 80,
+                pw
+             )
+             self._draw_nav_hint((px, py, pw, ph))
         else:
              # Show Options
              self.menu_options = [opt['text'] for opt in event['options']]
@@ -1202,38 +1298,57 @@ class MarsColonyGame:
         ax, ay, aw, ah = draw_text_box(self.screen, ai_x, y, col_w, col_h)
         ai_out = self.game.simultaneous_data['ai_outcome']
         
-        draw_text(self.screen, "AI RESULT", self.font_title, COLOR_ACCENT, ax, ay, center=True)
+        draw_text(self.screen, "AI RESULT", self.font_title, COLOR_ACCENT, ax + aw // 2, ay, center=True)
         
-        status_text = "SUCCESS" if ai_out['success'] else "FAILURE"
-        color = COLOR_ACCENT if ai_out['success'] else COLOR_TEXT # or Red? Retro doesn't have red
-        draw_text(self.screen, status_text, self.font_title, color, ax + aw//2, ay + 60, center=True)
-        
-        draw_multiline_text(self.screen, ai_out['message'], self.font_normal, COLOR_TEXT, ax, ay + 120, aw)
-        
-        # Stats Delta
-        old = ai_out['old_stats']
-        new = ai_out['new_stats']
-        draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, ax, ay + 300)
-        draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, ax, ay + 340)
+        if self.game.ai_game_over:
+            # Show Eliminated View
+            draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, ax + aw//2, ay + 60, center=True)
+            if self.game.ai_elimination_image:
+                 img = self.load_and_scale_image(self.game.ai_elimination_image)
+                 if img:
+                     scaled_img = pygame.transform.scale(img, (aw, 280))
+                     self.screen.blit(scaled_img, (ai_x + 15, ay + 120))
+        else:
+            # Normal Result View
+            status_text = "SUCCESS" if ai_out['success'] else "FAILURE"
+            color = COLOR_ACCENT if ai_out['success'] else COLOR_TEXT
+            draw_text(self.screen, status_text, self.font_title, color, ax + aw//2, ay + 60, center=True)
+            
+            draw_multiline_text(self.screen, ai_out['message'], self.font_normal, COLOR_TEXT, ax, ay + 120, aw)
+            
+            # Stats Delta
+            old = ai_out['old_stats']
+            new = ai_out['new_stats']
+            draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, ax, ay + 300)
+            draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, ax, ay + 340)
 
 
         # --- Player Result ---
         px, py, pw, ph = draw_text_box(self.screen, player_x, y, col_w, col_h)
         p_out = self.game.simultaneous_data['player_outcome']
         
-        draw_text(self.screen, "YOUR RESULT", self.font_title, COLOR_ACCENT, px, py, center=True)
+        draw_text(self.screen, "YOUR RESULT", self.font_title, COLOR_ACCENT, px + pw // 2, py, center=True)
         
-        status_text = "SUCCESS" if p_out['success'] else "FAILURE"
-        color = COLOR_ACCENT if p_out['success'] else COLOR_TEXT
-        draw_text(self.screen, status_text, self.font_title, color, px + pw//2, py + 60, center=True)
-        
-        draw_multiline_text(self.screen, p_out['message'], self.font_normal, COLOR_TEXT, px, py + 120, pw)
+        if self.game.player_game_over:
+            # Show Eliminated View
+            draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, px + pw//2, py + 60, center=True)
+            if self.game.player_elimination_image:
+                 img = self.load_and_scale_image(self.game.player_elimination_image)
+                 if img:
+                     scaled_img = pygame.transform.scale(img, (pw, 280))
+                     self.screen.blit(scaled_img, (player_x + 15, py + 120))
+        else:
+            status_text = "SUCCESS" if p_out['success'] else "FAILURE"
+            color = COLOR_ACCENT if p_out['success'] else COLOR_TEXT
+            draw_text(self.screen, status_text, self.font_title, color, px + pw//2, py + 60, center=True)
+            
+            draw_multiline_text(self.screen, p_out['message'], self.font_normal, COLOR_TEXT, px, py + 120, pw)
 
-        # Stats Delta
-        old = p_out['old_stats']
-        new = p_out['new_stats']
-        draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, px, py + 300)
-        draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, px, py + 340)
+            # Stats Delta
+            old = p_out['old_stats']
+            new = p_out['new_stats']
+            draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, px, py + 300)
+            draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, px, py + 340)
 
         # --- Center Control ---
         cx, cy, cw, ch = draw_text_box(self.screen, center_x, y, center_w, col_h)

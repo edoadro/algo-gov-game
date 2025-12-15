@@ -58,6 +58,9 @@ class Game:
         self.ai_final_stats = None  # {'pop': X, 'qol': Y} or None if AI failed
         self.ai_game_over = False
         self.player_game_over = False
+        
+        self.ai_elimination_image = None
+        self.player_elimination_image = None
 
         # RNG seed management
         self.game_seed = None
@@ -93,6 +96,8 @@ class Game:
         self.ai_final_stats = None
         self.ai_game_over = False
         self.player_game_over = False
+        self.ai_elimination_image = None
+        self.player_elimination_image = None
         self.game_seed = None
 
     def get_current_event(self):
@@ -125,6 +130,21 @@ class Game:
         # Process outcome with RNG
         self.process_outcome(option)
 
+    def get_deterministic_outcome(self, event_index, option_index, chance_success):
+        """
+        Get a deterministic success/fail result based on seed, event, and option.
+        Ensures that if AI and Player pick the same option for the same event, 
+        they get the same result.
+        """
+        # Create a unique seed for this specific choice point
+        unique_seed = f"{self.game_seed}-{event_index}-{option_index}"
+        
+        # Use a localized Random instance to avoid affecting global RNG state
+        rng = random.Random(unique_seed)
+        roll = rng.random()
+        
+        return roll <= chance_success
+
     def process_outcome(self, option_data):
         """
         Roll RNG and determine success or failure
@@ -132,9 +152,20 @@ class Game:
         Args:
             option_data: The selected option dictionary
         """
-        roll = random.random()  # 0.0 to 1.0
+        # For standard mode, we need the option index.
+        # But we only have option_data here. 
+        # We need to find the index of this option in the current event.
+        event = self.get_current_event()
+        option_index = 0
+        if event:
+             for i, opt in enumerate(event['options']):
+                 if opt == option_data:
+                     option_index = i
+                     break
 
-        if roll <= option_data['chance_success']:
+        success = self.get_deterministic_outcome(self.current_event_index, option_index, option_data['chance_success'])
+
+        if success:
             # SUCCESS PATH
             # Apply rewards
             self.stats['pop'] += option_data['success_reward']['pop']
@@ -145,7 +176,8 @@ class Game:
                 'success': True,
                 'message': option_data['success_msg'],
                 'old_stats': self.old_stats,
-                'new_stats': self.stats.copy()
+                'new_stats': self.stats.copy(),
+                'result_image': None # Success doesn't have a specific image in spec, but could.
             }
 
             # Transition to result display
@@ -153,9 +185,12 @@ class Game:
         else:
             # FAIL PATH
             # Store outcome for display
+            fail_image = option_data.get('fail_image', self.config.get('game_over_image'))
+            
             self.outcome_data = {
                 'success': False,
-                'message': option_data['fail_msg']
+                'message': option_data['fail_msg'],
+                'result_image': fail_image
             }
 
             # Immediate game over, no stat update
@@ -299,29 +334,26 @@ class Game:
         }
 
     def determine_winner(self):
-        """Determine winner based on total score"""
-        # If player failed (Game Over), AI wins (unless AI also failed earlier/same time, but strict survival is key)
-        # Actually, we should check if player completed.
-        # Current logic:
-        # 1. If player failed -> AI wins (or Tie if both failed? Let's say AI wins survival contest if player dies)
-        # 2. If player survived and AI failed -> Player wins
-        # 3. If both survived -> Compare scores
+        """Determine winner based on survival and total score"""
+        # 1. Survival Check
+        # If Player died and AI survived -> AI Wins
+        if self.player_game_over and not self.ai_game_over:
+            return 'ai'
+        
+        # If Player survived and AI died -> Player Wins
+        if not self.player_game_over and self.ai_game_over:
+            return 'player'
+            
+        # If both died -> Tie
+        if self.player_game_over and self.ai_game_over:
+            return 'tie'
 
-        # Check player failure status (we can infer from stats or state, but let's look at if we reached end)
-        player_completed = self.current_event_index >= len(self.events) and self.current_state != GameState.GAME_OVER
-
-        if not player_completed:
-             # Player died.
-             if self.ai_game_over:
-                 return 'tie' # Both died
-             else:
-                 return 'ai' # AI survived, player died
-
-        # If player survived...
-        if self.ai_game_over:
-            return 'player' # Player survived, AI died
-
-        # Both survived, compare scores
+        # 2. Score Check (Both Survived)
+        # Ensure stats are available (should be if no game over)
+        if not self.ai_final_stats:
+             # Fallback if something went wrong, though shouldn't happen here
+             return 'player' 
+             
         ai_total = self.ai_final_stats['pop'] + self.ai_final_stats['qol']
         player_total = self.stats['pop'] + self.stats['qol']
 
@@ -356,6 +388,13 @@ class Game:
             'ai_outcome': None,
             'player_outcome': None
         }
+        self.ai_game_over = False
+        self.player_game_over = False
+        
+        self.ai_decisions = []
+        self.ai_final_stats = None
+        self.ai_elimination_image = None
+        self.player_elimination_image = None
         
         self.initialize_seed()
 
@@ -364,6 +403,8 @@ class Game:
         event = self.get_current_event()
         if not event: 
             return
+            
+        print(f"DEBUG: Processing AI Decision. Event: {event['title']}, Option: {option_index}")
 
         self.simultaneous_data['ai_choice'] = option_index
         self.simultaneous_data['ai_reason'] = reason
@@ -371,14 +412,10 @@ class Game:
         # Process outcome for AI
         option = event['options'][option_index]
         
-        # We need independent RNG or shared? 
-        # "Play same scenario" -> Usually means same RNG roll for success/fail chance?
-        # But if they pick different options, chances are different.
-        # Let's use random() but maybe we should preserve state?
-        # Actually, if we just call random(), it's fair as long as seed was set at start.
+        # Use deterministic RNG
+        success = self.get_deterministic_outcome(self.current_event_index, option_index, option['chance_success'])
         
-        roll = random.random()
-        success = roll <= option['chance_success']
+        print(f"DEBUG: Outcome - Success: {success} (Chance: {option['chance_success']})")
         
         outcome = {
             'success': success,
@@ -390,8 +427,23 @@ class Game:
             self.ai_stats['pop'] += option['success_reward']['pop']
             self.ai_stats['qol'] += option['success_reward']['qol']
             outcome['message'] = option['success_msg']
+            outcome['result_image'] = None
         else:
             outcome['message'] = option['fail_msg']
+            outcome['result_image'] = option.get('fail_image', self.config.get('game_over_image'))
+            self.ai_game_over = True # Eliminated on RNG failure
+            self.ai_elimination_image = outcome['result_image']
+            print("DEBUG: AI Eliminated due to RNG Failure")
+            
+        # Check for population failure
+        print(f"DEBUG: AI Stats: {self.ai_stats}")
+        if self.ai_stats['pop'] <= 0:
+            self.ai_game_over = True
+            self.ai_elimination_image = self.config.get('game_over_image')
+            print("DEBUG: AI Eliminated due to Low Population")
+            if success: # If not already failed by RNG
+                 outcome['message'] += " (Collapsed: Pop <= 0)"
+                 outcome['result_image'] = self.config.get('game_over_image')
             
         outcome['new_stats'] = self.ai_stats.copy()
         self.simultaneous_data['ai_outcome'] = outcome
@@ -407,9 +459,8 @@ class Game:
         # Process outcome for Player
         option = event['options'][option_index]
         
-        # Use random()
-        roll = random.random()
-        success = roll <= option['chance_success']
+        # Use deterministic RNG
+        success = self.get_deterministic_outcome(self.current_event_index, option_index, option['chance_success'])
         
         outcome = {
             'success': success,
@@ -421,13 +472,39 @@ class Game:
             self.stats['pop'] += option['success_reward']['pop']
             self.stats['qol'] += option['success_reward']['qol']
             outcome['message'] = option['success_msg']
+            outcome['result_image'] = None
         else:
             outcome['message'] = option['fail_msg']
+            outcome['result_image'] = option.get('fail_image', self.config.get('game_over_image'))
+            self.player_game_over = True # Eliminated on RNG failure
+            self.player_elimination_image = outcome['result_image']
+            
+        # Check for population failure
+        if self.stats['pop'] <= 0:
+            self.player_game_over = True
+            self.player_elimination_image = self.config.get('game_over_image')
+            if success:
+                 outcome['message'] += " (Collapsed: Pop <= 0)"
+                 outcome['result_image'] = self.config.get('game_over_image')
             
         outcome['new_stats'] = self.stats.copy()
         self.simultaneous_data['player_outcome'] = outcome
         
         # Both have decided, move to Result Display
+        self.current_state = GameState.SIMULTANEOUS_RESULT_DISPLAY
+
+    def skip_simultaneous_player_turn(self):
+        """Skip player turn if eliminated"""
+        self.simultaneous_data['player_choice'] = -1 # Dummy
+        
+        outcome = {
+            'success': False,
+            'option_index': -1,
+            'old_stats': self.stats.copy(),
+            'new_stats': self.stats.copy(),
+            'message': "ELIMINATED"
+        }
+        self.simultaneous_data['player_outcome'] = outcome
         self.current_state = GameState.SIMULTANEOUS_RESULT_DISPLAY
 
     def advance_simultaneous_next_event(self):

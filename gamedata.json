@@ -8,7 +8,8 @@
     ],
     "intro_title": "INTRODUCTION",
     "intro_text": "In the year 2125, humanity colonized Mars after climate catastrophes made Earth uninhabitable. Now it is 2135. A structured society has formed: small peripheral towns governed by a central aristocratic city. The ruling council can elect a single decision-maker during crises to reduce decision-making time.",
-    "game_explanation": "This game pits human intuition against artificial intelligence. Watch the AI navigate the crisis, then see if you can do better."
+    "game_explanation": "This game pits human intuition against artificial intelligence. Watch the AI navigate the crisis, then see if you can do better.",
+    "game_over_image": "assets/images/standard-game-over.png"
   },
   "events": [
     {
@@ -30,10 +31,11 @@
           "id": 2,
           "text": "Option 2: Reserve food for the main city only",
           "details": "Prioritize the central city, greatly extending the available research time to find new farming techniques. Higher survival chances, but risks uprisings and civil war.",
-          "chance_success": 0.35,
+          "chance_success": 0.75,
           "success_reward": {"pop": -20, "qol": 20},
           "success_msg": "The central city thrived and unlocked new sustainable farming methods.",
-          "fail_msg": "The outer towns revolted violently. Civil war erupted."
+          "fail_msg": "The outer towns revolted violently. Civil war erupted.",
+          "fail_image": "assets/images/cult_rising.png"
         },
         {
           "id": 3,
