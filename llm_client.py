@@ -1,19 +1,12 @@
 """
 LLM client for AI decision-making
-Supports multiple providers: Gemini (via official SDK), Ollama, Anthropic (future)
+Supports: Gemini (via official SDK)
 """
 import os
 import json
 import random
 import google.generativeai as genai
 from dotenv import load_dotenv
-
-# Try importing groq, but don't crash if it's not installed
-try:
-    from groq import Groq
-    GROQ_AVAILABLE = True
-except ImportError:
-    GROQ_AVAILABLE = False
 
 # Load environment variables
 load_dotenv()
@@ -22,53 +15,23 @@ load_dotenv()
 class LLMClient:
     """AI provider client - currently supports Gemini via SDK"""
 
-    def __init__(self, provider='gemini'):
+    def __init__(self):
         """
-        Initialize LLM client with specified provider
-
-        Args:
-            provider: 'gemini', 'ollama', or 'anthropic'
+        Initialize LLM client with Gemini provider
         """
-        self.provider = provider
+        self.provider = 'gemini'
         self.model = None
-        self.api_key = None # Initialize safely
-
-        if provider == 'gemini':
-            self.api_key = os.getenv('GEMINI_API_KEY')
-            if self.api_key:
-                # Configure the official SDK
-                genai.configure(api_key=self.api_key)
-                # gemini-1.5-flash is faster/cheaper for decision logic than pro
-                self.model = genai.GenerativeModel('gemini-2.5-flash')
+        self.api_key = os.getenv('GEMINI_API_KEY')
         
-        elif provider == 'groq':
-            if not GROQ_AVAILABLE:
-                print("Warning: 'groq' library not installed. Please run 'pip install groq'.")
-            else:
-                self.api_key = os.getenv('GROQ_API_KEY')
-                if self.api_key:
-                    self.model = Groq(api_key=self.api_key)
-        
-        # Future: elif self.provider == 'ollama': ...
-
-    def _build_system_message(self):
-        """Constructs the system message for JSON compliance."""
-        return """Return ONLY valid JSON (no markdown, no code fences, no extra keys).
-The JSON must be exactly:
-{
-  "choice": 0,
-  "reason": "string"
-}
-- choice must be 0, 1, or 2 (integer)
-- reason must be 1-2 sentences"""
+        if self.api_key:
+            # Configure the official SDK
+            genai.configure(api_key=self.api_key)
+            # gemini-1.5-flash is faster/cheaper for decision logic than pro
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
 
     def is_available(self):
         """Check if API key is configured"""
-        if self.provider == 'gemini':
-            return self.api_key is not None and self.api_key != ""
-        elif self.provider == 'groq':
-            return GROQ_AVAILABLE and self.api_key is not None and self.api_key != ""
-        return False
+        return self.api_key is not None and self.api_key != ""
 
     def get_ai_decision(self, event_data, current_stats):
         """
@@ -88,40 +51,13 @@ The JSON must be exactly:
             return fallback
 
         prompt = self.build_prompt(event_data, current_stats)
-        print(f"DEBUG: Executing AI Decision with provider: '{self.provider}' (Type: {type(self.provider)})")
+        print(f"DEBUG: Executing AI Decision with provider: '{self.provider}'")
 
         try:
-            if self.provider == 'gemini':
-                # Official SDK call
-                response = self.model.generate_content(prompt)
-                # The SDK response object has a .text property
-                return self.parse_response_text(response.text)
-            
-            elif self.provider == 'groq':
-                # Groq SDK call
-                messages = [
-                    {"role": "system", "content": self._build_system_message().strip()},
-                    {"role": "user", "content": prompt.strip()}
-                ]
-                
-                if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
-                    print("\n--- LLM MESSAGES (GROQ) ---")
-                    print(json.dumps(messages, indent=2))
-                    print("-------------------------\n")
-
-                completion = self.model.chat.completions.create(
-                    model="moonshotai/kimi-k2-instruct", # Specified by user
-                    messages=messages,
-                    temperature=0, # As suggested by user for strict JSON
-                    max_tokens=150,
-                    top_p=1,
-                    stop=None,
-                    stream=False,
-                    response_format={"type": "json_object"},
-                    # reasoning_effort="none" # As suggested by user for Qwen
-                )
-            
-            # Future: elif self.provider == 'ollama': ...
+            # Official SDK call
+            response = self.model.generate_content(prompt)
+            # The SDK response object has a .text property
+            return self.parse_response_text(response.text)
             
         except Exception as e:
             print(f"LLM API error: {e}")
@@ -132,7 +68,8 @@ The JSON must be exactly:
         options_text = ""
         for i, opt in enumerate(event_data['options']):
             details = opt.get('details', 'No details provided.')
-            options_text += f"{i}: {opt['text']}\n   Details: {details}\n"
+            # Show 1-based index to AI
+            options_text += f"{i + 1}: {opt['text']}\n   Details: {details}\n"
 
         prompt_content = f"""You are managing a Mars colony. Current stats:
 Population: {current_stats['pop']}
@@ -144,7 +81,13 @@ EVENT: {event_data['title']}
 OPTIONS:
 {options_text}
 
-Choose the best option (0, 1, or 2) and provide a brief reason.
+Return ONLY valid JSON (no markdown, no code fences).
+Format:
+{{
+  "choice": 1,
+  "reason": "brief explanation"
+}}
+Choice must be 1, 2, or 3.
 """
         
         if os.getenv('SHOW_LLM_INTERACTION', 'false').lower() == 'true':
@@ -172,20 +115,29 @@ Choose the best option (0, 1, or 2) and provide a brief reason.
             
             # Parse JSON
             data = json.loads(clean_text)
-            choice = int(data.get('choice', 0))
+            choice = int(data.get('choice', 1)) # Default to 1 if missing
             reason = data.get('reason', "No reason provided.")
             
-            if 0 <= choice <= 2:
-                return {'choice': choice, 'reason': reason}
+            # Convert 1-based index (1-3) to 0-based index (0-2)
+            if 1 <= choice <= 3:
+                return {'choice': choice - 1, 'reason': reason}
                 
         except (json.JSONDecodeError, ValueError, AttributeError, TypeError) as e:
             print(f"Error parsing LLM response: {e}")
-            # Try to salvage just a number if JSON fails
+            
+            # Use the full text as the reason
+            reason = text
+            
+            # Try to salvage a choice number (1-3)
+            choice = random.randint(1, 3)
             for char in text:
                 if char.isdigit():
                     num = int(char)
-                    if 0 <= num <= 2:
-                        return {'choice': num, 'reason': "I couldn't format my reason properly, but this is my choice."}
+                    if 1 <= num <= 3:
+                        choice = num
+                        break
+            
+            return {'choice': choice - 1, 'reason': reason}
 
-        # Fallback if parsing fails completely
-        return {'choice': random.randint(0, 2), 'reason': "Communication error. Random fallback initiated."}
+        # Fallback
+        return {'choice': random.randint(0, 2), 'reason': text if text else "Communication error."}

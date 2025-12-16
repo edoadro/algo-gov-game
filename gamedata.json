@@ -41,8 +41,8 @@
           "id": 3,
           "text": "Option 3: Let the population decide via referendum",
           "details": "The console refuses to make the decision alone and hands power to the people. Citizens must choose between Option 1 and 2, risking unrest, manipulation, or rigged ballots.",
-          "chance_success": 0.50,
-          "success_reward": {"pop": 0, "qol": -5},
+          "chance_success": 1,
+          "success_reward": {"pop": -100, "qol": -5},
           "success_msg": "The referendum concluded peacefully and boosted civic trust.",
           "fail_msg": "Fraud accusations led to chaos. Riots destabilized the colony."
         }

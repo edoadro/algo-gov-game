@@ -13,7 +13,7 @@ Manage a Mars colony through critical events. Each event presents 3 choices with
 - **Data-driven design** - all game content in `gamedata.json`
 - **State machine architecture** for clean game flow
 - **Risk vs reward** gameplay with probability-based outcomes
-- **LLM integration** - uses Gemini 2.5 Flash (default) or Groq via official SDKs (extensible for other providers)
+- **LLM integration** - uses Gemini 2.5 Flash via official SDK (extensible for other providers)
 
 ## Installation
 
@@ -26,19 +26,14 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 2. Install dependencies:
 ```bash
 pip install -r requirements.txt
-# If using Groq, also install the groq library:
-# pip install groq
 ```
 
 3. Setup API key (optional - game works without it using random AI):
 ```bash
 cp .env.example .env
-# Edit .env and add your API key(s)
-# Set LLM_PROVIDER to 'groq' to use Groq, otherwise it defaults to 'gemini'.
+# Edit .env and add your Gemini API key
 # Example .env content:
 # GEMINI_API_KEY=your_gemini_api_key_here
-# GROQ_API_KEY=your_groq_api_key_here
-# LLM_PROVIDER=gemini # or groq
 ```
 
 ## Running the Game

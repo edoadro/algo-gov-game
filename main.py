@@ -126,9 +126,7 @@ class MarsColonyGame:
         # Ensure client exists
         if not hasattr(self, 'llm_client'):
             from llm_client import LLMClient
-            import os
-            provider = os.getenv('LLM_PROVIDER', 'gemini')
-            self.llm_client = LLMClient(provider=provider)
+            self.llm_client = LLMClient()
 
         current_session_id = self.game_session_id
 
@@ -626,7 +624,7 @@ class MarsColonyGame:
         left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
 
         # Stats display (in left pane top)
-        stats_text = f"POP: {self.game.stats['pop']} | QOL: {self.game.stats['qol']}"
+        stats_text = f"Population: {self.game.stats['pop']} | Quality of Life: {self.game.stats['qol']}"
         draw_text(self.screen, stats_text, self.font_small, COLOR_ACCENT, left_x, left_y)
 
         draw_multiline_text(
@@ -701,7 +699,7 @@ class MarsColonyGame:
         )
 
         # Stats display
-        stats_text = f"POP: {self.game.stats['pop']} | QOL: {self.game.stats['qol']}"
+        stats_text = f"Population: {self.game.stats['pop']} | Quality of Life: {self.game.stats['qol']}"
         draw_text(self.screen, stats_text, self.font_small, COLOR_ACCENT, left_x, left_y + 25)
 
         draw_multiline_text(
@@ -827,8 +825,8 @@ class MarsColonyGame:
         
         if comparison['ai']['completed']:
             ai_stats = comparison['ai']['stats']
-            draw_text(self.screen, f"POP: {ai_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
-            draw_text(self.screen, f"QOL: {ai_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
+            draw_text(self.screen, f"Population: {ai_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
+            draw_text(self.screen, f"Quality of Life: {ai_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
             total_ai = ai_stats['pop'] + ai_stats['qol']
             draw_text(self.screen, f"TOTAL: {total_ai}", self.font_normal, COLOR_ACCENT, left_x, current_y + 80)
         else:
@@ -840,8 +838,8 @@ class MarsColonyGame:
 
         if comparison['player']['completed']:
             player_stats = comparison['player']['stats']
-            draw_text(self.screen, f"POP: {player_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
-            draw_text(self.screen, f"QOL: {player_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
+            draw_text(self.screen, f"Population: {player_stats['pop']}", self.font_small, COLOR_TEXT, left_x, current_y + 30)
+            draw_text(self.screen, f"Quality of Life: {player_stats['qol']}", self.font_small, COLOR_TEXT, left_x, current_y + 50)
             total_player = player_stats['pop'] + player_stats['qol']
             draw_text(self.screen, f"TOTAL: {total_player}", self.font_normal, COLOR_ACCENT, left_x, current_y + 80)
         else:
@@ -917,8 +915,8 @@ class MarsColonyGame:
             old_stats = self.game.outcome_data['old_stats']
             new_stats = self.game.outcome_data['new_stats']
 
-            pop_text = f"POP: {old_stats['pop']} -> {new_stats['pop']}"
-            qol_text = f"QOL: {old_stats['qol']} -> {new_stats['qol']}"
+            pop_text = f"Population: {old_stats['pop']} -> {new_stats['pop']}"
+            qol_text = f"Quality of Life: {old_stats['qol']} -> {new_stats['qol']}"
 
             draw_text(self.screen, pop_text, self.font_normal, COLOR_TEXT, left_x, current_y)
             draw_text(self.screen, qol_text, self.font_normal, COLOR_TEXT, left_x, current_y + 30)
@@ -1136,7 +1134,7 @@ class MarsColonyGame:
         
         # Stats
         stats = self.game.ai_stats
-        draw_text(self.screen, f"POP: {stats['pop']} | QOL: {stats['qol']}", self.font_normal, COLOR_TEXT, ax + aw // 2, ay + 40, center=True)
+        draw_text(self.screen, f"Population: {stats['pop']} | Quality of Life: {stats['qol']}", self.font_normal, COLOR_TEXT, ax + aw // 2, ay + 40, center=True)
         
         # Image
         if event['id'] in self.event_images:
@@ -1211,7 +1209,7 @@ class MarsColonyGame:
         
         # Stats
         p_stats = self.game.stats
-        draw_text(self.screen, f"POP: {p_stats['pop']} | QOL: {p_stats['qol']}", self.font_normal, COLOR_TEXT, px + pw // 2, py + 40, center=True)
+        draw_text(self.screen, f"Population: {p_stats['pop']} | Quality of Life: {p_stats['qol']}", self.font_normal, COLOR_TEXT, px + pw // 2, py + 40, center=True)
 
         # Image
         if event['id'] in self.event_images:
@@ -1321,8 +1319,8 @@ class MarsColonyGame:
             # Stats Delta
             old = ai_out['old_stats']
             new = ai_out['new_stats']
-            draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, ax, ay + 300)
-            draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, ax, ay + 340)
+            draw_text(self.screen, f"Population: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, ax, ay + 300)
+            draw_text(self.screen, f"Quality of Life: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, ax, ay + 340)
 
 
         # --- Player Result ---
@@ -1349,8 +1347,8 @@ class MarsColonyGame:
             # Stats Delta
             old = p_out['old_stats']
             new = p_out['new_stats']
-            draw_text(self.screen, f"POP: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, px, py + 300)
-            draw_text(self.screen, f"QOL: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, px, py + 340)
+            draw_text(self.screen, f"Population: {old['pop']} -> {new['pop']}", self.font_normal, COLOR_TEXT, px, py + 300)
+            draw_text(self.screen, f"Quality of Life: {old['qol']} -> {new['qol']}", self.font_normal, COLOR_TEXT, px, py + 340)
 
         # --- Center Control ---
         cx, cy, cw, ch = draw_text_box(self.screen, center_x, y, center_w, col_h)
