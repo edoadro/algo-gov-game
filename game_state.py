@@ -354,8 +354,8 @@ class Game:
              # Fallback if something went wrong, though shouldn't happen here
              return 'player' 
              
-        ai_total = self.ai_final_stats['pop'] + self.ai_final_stats['qol']
-        player_total = self.stats['pop'] + self.stats['qol']
+        ai_total = self.ai_final_stats['pop'] * self.ai_final_stats['qol']
+        player_total = self.stats['pop'] * self.stats['qol']
 
         if player_total > ai_total:
             return 'player'
