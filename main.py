@@ -7,9 +7,13 @@ import json
 import os
 import pygame
 import threading
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from settings import (
     SCREEN_WIDTH, SCREEN_HEIGHT, INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT, FPS,
-    COLOR_BG, COLOR_TEXT, COLOR_ACCENT,
+    COLOR_BG, COLOR_TEXT, COLOR_ACCENT, COLOR_BUTTON,
     FONT_TITLE, FONT_NORMAL, FONT_SMALL,
     GameState
 )
@@ -36,6 +40,9 @@ class MarsColonyGame:
     def __init__(self):
         """Initialize pygame and game components"""
         pygame.init()
+        # Initialize clipboard support
+        pygame.scrap.init()
+        
         # Create the actual display window (resizable)
         self.display_window = pygame.display.set_mode(
             (INITIAL_WINDOW_WIDTH, INITIAL_WINDOW_HEIGHT), 
@@ -59,6 +66,12 @@ class MarsColonyGame:
         game_data = load_game_data('gamedata.json')
         self.game = Game(game_data)
 
+        # API Key Check
+        self.api_key_input_text = ""
+        self.api_key_error = None
+        if not os.getenv("GEMINI_API_KEY"):
+            self.game.current_state = GameState.API_KEY_INPUT
+        
         # Load background images
         self.default_bg = None
         default_bg_path = game_data.get('config', {}).get('default_background')
@@ -119,6 +132,43 @@ class MarsColonyGame:
             print(f"Warning: Could not load image at {path}")
             return None
 
+    def save_api_key(self, key):
+        """Save API key to .env file and update environment"""
+        try:
+            # Update current environment
+            os.environ['GEMINI_API_KEY'] = key
+            
+            # Write to .env file
+            env_path = '.env'
+            lines = []
+            key_updated = False
+            
+            if os.path.exists(env_path):
+                with open(env_path, 'r') as f:
+                    lines = f.readlines()
+                
+                with open(env_path, 'w') as f:
+                    for line in lines:
+                        if line.startswith('GEMINI_API_KEY='):
+                            f.write(f"GEMINI_API_KEY={key}\n")
+                            key_updated = True
+                        else:
+                            f.write(line)
+                    
+                    if not key_updated:
+                        if lines and not lines[-1].endswith('\n'):
+                            f.write('\n')
+                        f.write(f"GEMINI_API_KEY={key}\n")
+            else:
+                with open(env_path, 'w') as f:
+                    f.write(f"GEMINI_API_KEY={key}\n")
+            
+            print("API Key saved.")
+            
+        except Exception as e:
+            print(f"Error saving API key: {e}")
+            self.api_key_error = str(e)
+
     def start_ai_thread(self):
         """Start a background thread to get AI decision"""
         self.ai_decision_data = None
@@ -169,6 +219,27 @@ class MarsColonyGame:
                 if self.game.current_state == GameState.START_SCREEN:
                     self.game.start_game()
                     self.selected_option_index = 0
+
+                # API Key Input
+                elif self.game.current_state == GameState.API_KEY_INPUT:
+                    if event.key == pygame.K_RETURN:
+                        if self.api_key_input_text.strip():
+                            self.save_api_key(self.api_key_input_text.strip())
+                            self.game.current_state = GameState.START_SCREEN
+                    elif event.key == pygame.K_BACKSPACE:
+                        self.api_key_input_text = self.api_key_input_text[:-1]
+                    elif event.key == pygame.K_v and (event.mod & pygame.KMOD_CTRL or event.mod & pygame.KMOD_META):
+                        try:
+                            clip = pygame.scrap.get(pygame.SCRAP_TEXT)
+                            if clip:
+                                text = clip.decode('utf-8').strip()
+                                text = text.replace('\x00', '')
+                                self.api_key_input_text += text
+                        except Exception as e:
+                            print(f"Paste error: {e}")
+                    else:
+                        if len(event.unicode) > 0 and event.unicode.isprintable():
+                            self.api_key_input_text += event.unicode
 
                 # Arrow key navigation
                 elif event.key == pygame.K_UP:
@@ -316,6 +387,9 @@ class MarsColonyGame:
         if self.game.current_state == GameState.START_SCREEN:
             self.render_start_screen()
 
+        elif self.game.current_state == GameState.API_KEY_INPUT:
+            self.render_api_key_input()
+
         elif self.game.current_state == GameState.MODE_SELECT:
             self.render_mode_select()
 
@@ -395,6 +469,85 @@ class MarsColonyGame:
             center=True
         )
         self._draw_nav_hint((bottom_x, bottom_y, bottom_w, bottom_h))
+
+    def render_api_key_input(self):
+        """Render API Key input screen"""
+        # Left Pane: Instructions
+        left_x, left_y, left_w, _ = draw_text_box(self.screen, 20, 20, 890, 860)
+        
+        draw_text(self.screen, "SETUP", self.font_title, COLOR_ACCENT, left_x, left_y)
+        
+        draw_multiline_text(
+            self.screen,
+            "Gemini API Key Required",
+            self.font_normal,
+            COLOR_TEXT,
+            left_x,
+            left_y + 60,
+            left_w
+        )
+        
+        draw_multiline_text(
+            self.screen,
+            "To play the Human vs AI mode, you need a Google Gemini API Key.",
+            self.font_normal,
+            COLOR_TEXT,
+            left_x,
+            left_y + 120,
+            left_w
+        )
+        
+        draw_multiline_text(
+            self.screen,
+            "Get it for free at: aistudio.google.com",
+            self.font_small,
+            COLOR_ACCENT,
+            left_x,
+            left_y + 200,
+            left_w
+        )
+        
+        # Bottom Right Pane: Input
+        bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
+        
+        draw_text(self.screen, "ENTER API KEY:", self.font_normal, COLOR_ACCENT, bottom_x, bottom_y)
+        
+        # Draw input box background
+        input_rect = pygame.Rect(bottom_x, bottom_y + 50, bottom_w - 20, 50)
+        pygame.draw.rect(self.screen, COLOR_BUTTON, input_rect)
+        pygame.draw.rect(self.screen, COLOR_ACCENT, input_rect, 2)
+        
+        # Truncate for display if too long
+        display_text = self.api_key_input_text
+        if len(display_text) > 40:
+             display_text = "..." + display_text[-37:]
+             
+        draw_text(
+            self.screen,
+            display_text + "_", # Cursor
+            self.font_small,
+            COLOR_TEXT,
+            input_rect.x + 10,
+            input_rect.y + 15
+        )
+        
+        draw_text_right(
+            self.screen,
+            "Press ENTER to Confirm",
+            self.font_small,
+            COLOR_ACCENT,
+            bottom_x + bottom_w - 10,
+            bottom_y + bottom_h - 20
+        )
+        
+        draw_text_right(
+            self.screen,
+            "Ctrl+V / Cmd+V to Paste",
+            self.font_small,
+            COLOR_ACCENT,
+            bottom_x + bottom_w - 10,
+            bottom_y + bottom_h - 50
+        )
 
     def render_mode_select(self):
         """Render intro and explanation screen"""

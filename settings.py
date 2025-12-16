@@ -43,3 +43,4 @@ class GameState(Enum):
     COMPARISON = 12            # AI vs Player comparison screen
     SIMULTANEOUS_EVENT_DISPLAY = 13 # Split screen AI/Human event
     SIMULTANEOUS_RESULT_DISPLAY = 14 # Split screen results
+    API_KEY_INPUT = 15         # Prompt for Gemini API Key
