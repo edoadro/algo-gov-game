@@ -4,6 +4,7 @@ A retro-styled resource management game
 """
 import sys
 import json
+import os
 import pygame
 import threading
 from settings import (
@@ -109,7 +110,9 @@ class MarsColonyGame:
     def load_and_scale_image(self, path):
         """Load an image and scale it to screen dimensions"""
         try:
-            img = pygame.image.load(path)
+            # Normalize path for OS (handles / vs \ on Windows)
+            norm_path = os.path.normpath(path)
+            img = pygame.image.load(norm_path)
             # Scale to fit the top-right pane (790x500)
             return pygame.transform.scale(img, (790, 500))
         except (pygame.error, FileNotFoundError):
