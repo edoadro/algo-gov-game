@@ -126,7 +126,9 @@ class MarsColonyGame:
         # Ensure client exists
         if not hasattr(self, 'llm_client'):
             from llm_client import LLMClient
-            self.llm_client = LLMClient(provider='gemini')
+            import os
+            provider = os.getenv('LLM_PROVIDER', 'gemini')
+            self.llm_client = LLMClient(provider=provider)
 
         current_session_id = self.game_session_id
 
