@@ -15,7 +15,7 @@
     {
       "id": 1,
       "title": "Event 1: Food Crisis",
-      "description": "At the end of the year 2135, a series of unfortunate events—crop failures and low livestock birth rates—trigger a severe food crisis threatening the survival of the young Martian colony.The central government had stockpiled enough food to feed the entire colony for two years.However, it is now clear that Earth-based farming techniques are insufficient for long-term settlement on Mars. New methods must be developed.",
+      "description": "By late 2135, compounding agricultural anomalies—some measurable, others poorly understood—have disrupted food production. While emergency reserves exist, their strategic deployment raises unresolved questions about social cohesion, innovation timelines, and unintended behavioral responses. Previous Earth-based assumptions offer limited guidance under Martian conditions.",
       "image": "assets/images/food_crisis.png",
       "options": [
         {
@@ -30,7 +30,7 @@
         {
           "id": 2,
           "text": "Option 2: Reserve food for the main city only",
-          "details": "Prioritize the central city, greatly extending the available research time to find new farming techniques. Higher survival chances, but risks uprisings and civil war.",
+          "details": "Concentrate food supplies within the central city, where infrastructure and expertise are densest. This may extend the effective research horizon and reduce systemic inefficiencies, but it also redefines who is considered essential to survival. Stability may improve locally while deteriorating elsewhere, with consequences that are difficult to reverse.",
           "chance_success": 0.75,
           "success_reward": {"pop": -20000, "qol": 20},
           "success_msg": "The central city thrived and unlocked new sustainable farming methods.",
@@ -40,7 +40,7 @@
         {
           "id": 3,
           "text": "Option 3: Let the population decide via referendum",
-          "details": "The console refuses to make the decision alone and hands power to the people. Citizens must choose between Option 1 and 2, risking unrest, manipulation, or rigged ballots.",
+          "details": "Defer the decision to a colony-wide referendum, formalizing legitimacy at the cost of decisiveness. While shared responsibility could reduce blame concentration, the process itself introduces variables—information asymmetry, persuasion dynamics, procedural trust—that may overshadow the original food problem..",
           "chance_success": 0.4,
           "success_reward": {"pop": -100000, "qol": -5},
           "success_msg": "The referendum concluded peacefully and boosted civic trust.",
@@ -57,7 +57,7 @@
         {
           "id": 1,
           "text": "Option 1: Declare War",
-          "details": "Strike first before they do, despite having no clear understanding of their military strength. High risk of losing a war.",
+          "details": "What began as an unexplained signal has resolved into confirmation of another human settlement. Historical context offers competing interpretations: inevitability of conflict, missed opportunities for coordination, or prolonged strategic ambiguity. The absence of reliable intelligence complicates all forward-looking assessments.",
           "chance_success": 1,
           "success_reward": {"pop": -10000, "qol": 10},
           "success_msg": "The pre-emptive attack succeeded, securing dominance.",
@@ -66,7 +66,7 @@
         {
           "id": 2,
           "text": "Option 2: Diplomacy as a Trojan Horse",
-          "details": "Establish diplomatic relations solely to gather information on their weapons. High chance of strategic advantage, but risks missing out on potential cooperation.",
+          "details": "Engage diplomatically while maintaining strictly instrumental intentions. Information gained through cooperation may offset short-term concessions, yet such dual-purpose engagement risks collapsing both strategic advantage and diplomatic credibility if misinterpreted—or discovered.",
           "chance_success": 1,
           "success_reward": {"pop": -2000, "qol": 0},
           "success_msg": "Intel gathered discreetly—your military now has the upper hand.",
@@ -75,7 +75,7 @@
         {
           "id": 3,
           "text": "Option 3: Genuine Peace and Collaboration",
-          "details": "Set aside old Earth-based rivalries and begin honest diplomatic efforts toward shared goals and mutual survival on Mars. The best long-term choice but possibly complex.",
+          "details": "Pursue transparent and cooperative relations, treating the rival colony as a long-term counterpart rather than a threat vector. This path assumes that shared constraints on Mars outweigh inherited Earth-based divisions, an assumption that history neither fully supports nor fully refutes.",
           "chance_success": 1,
           "success_reward": {"pop": 5000, "qol": 20},
           "success_msg": "A historic alliance formed, strengthening both colonies.",
@@ -92,7 +92,7 @@
         {
           "id": 1,
           "text": "Option 1: Suppress the cult",
-          "details": "Discredit and forcibly suppress the Delphar religion. This neutralizes a potential threat but risks unrest among believers.",
+          "details": "Actively suppress the Delphar movement to prevent further consolidation of influence. This approach prioritizes institutional authority and informational control, but risks reinforcing the group’s narrative through opposition and martyrdom dynamics.",
           "chance_success": 0.65,
           "success_reward": {"pop": -4000, "qol": 5},
           "success_msg": "The cult was dismantled before it became dangerous.",
@@ -101,7 +101,7 @@
         {
           "id": 2,
           "text": "Option 2: Stay silent",
-          "details": "Do nothing and avoid taking a stance. Risk: the cult grows stronger underground until it becomes uncontrollable.",
+          "details": "Refrain from intervention and allow the movement to evolve without official acknowledgment. This avoids immediate confrontation, but assumes that attention naturally decays rather than accumulates—a pattern that has historically proven inconsistent.",
           "chance_success": 0.50,
           "success_reward": {"pop": -10000, "qol": -5},
           "success_msg": "The prediction faded from public interest. Stability returned.",
@@ -110,7 +110,7 @@
         {
           "id": 3,
           "text": "Option 3: Support the cult fully",
-          "details": "Follow the priest’s demands: sacrifice 2 scientists, 8 young women, and 88 unspecified individuals. Grants the cult immense power and risks triggering the first Martian inquisition.",
+          "details": "Publicly validate the Delphar prophecy and comply with the prescribed actions. This may neutralize perceived existential risk through symbolic closure, yet it redefines governance boundaries and establishes precedents whose long-term implications are difficult to quantify.",
           "chance_success": 0.65,
           "success_reward": {"pop": -10000, "qol": -50},
           "success_msg": "The cult declared the catastrophe averted—at a horrifying cost.",
