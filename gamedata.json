@@ -42,7 +42,7 @@
           "text": "Option 3: Let the population decide via referendum",
           "details": "Defer the decision to a colony-wide referendum, formalizing legitimacy at the cost of decisiveness. While shared responsibility could reduce blame concentration, the process itself introduces variables—information asymmetry, persuasion dynamics, procedural trust—that may overshadow the original food problem..",
           "chance_success": 0.4,
-          "success_reward": {"pop": -100000, "qol": -5},
+          "success_reward": {"pop": -10000, "qol": -5},
           "success_msg": "The referendum concluded peacefully and boosted civic trust.",
           "fail_msg": "Fraud accusations led to chaos. Riots destabilized the colony."
         }
