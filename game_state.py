@@ -171,6 +171,18 @@ class Game:
             self.stats['pop'] += option_data['success_reward']['pop']
             self.stats['qol'] += option_data['success_reward']['qol']
 
+            # Check for population collapse immediately after stat update
+            if self.stats['pop'] <= 0:
+                self.outcome_data = {
+                    'success': False,
+                    'message': f"{option_data['success_msg']}\n\nThe colony has perished! Population reached zero. All are dead.",
+                    'result_image': self.config.get('game_over_image')
+                }
+                if self.current_phase == 'player':
+                    self.player_game_over = True
+                self.current_state = GameState.GAME_OVER
+                return # Exit early, it's game over
+            
             # Store outcome for display
             self.outcome_data = {
                 'success': True,
@@ -441,9 +453,12 @@ class Game:
             self.ai_game_over = True
             self.ai_elimination_image = self.config.get('game_over_image')
             print("DEBUG: AI Eliminated due to Low Population")
-            if success: # If not already failed by RNG
-                 outcome['message'] += " (Collapsed: Pop <= 0)"
-                 outcome['result_image'] = self.config.get('game_over_image')
+            # If population collapse, it's always a failure state for the outcome
+            outcome['success'] = False 
+            # Append death message to existing message (which is either success_msg or fail_msg)
+            outcome['message'] = f"{outcome['message']}\n\nThe AI colony has perished! Population reached zero."
+            outcome['result_image'] = self.config.get('game_over_image')
+
             
         outcome['new_stats'] = self.ai_stats.copy()
         self.simultaneous_data['ai_outcome'] = outcome
@@ -483,9 +498,11 @@ class Game:
         if self.stats['pop'] <= 0:
             self.player_game_over = True
             self.player_elimination_image = self.config.get('game_over_image')
-            if success:
-                 outcome['message'] += " (Collapsed: Pop <= 0)"
-                 outcome['result_image'] = self.config.get('game_over_image')
+            # If population collapse, it's always a failure state for the outcome
+            outcome['success'] = False 
+            # Append death message to existing message
+            outcome['message'] = f"{outcome['message']}\n\nYour colony has perished! Population reached zero."
+            outcome['result_image'] = self.config.get('game_over_image')
             
         outcome['new_stats'] = self.stats.copy()
         self.simultaneous_data['player_outcome'] = outcome
