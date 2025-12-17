@@ -1111,7 +1111,7 @@ class MarsColonyGame:
             left_y
         )
         
-        draw_multiline_text(
+        text_height = draw_multiline_text(
             self.screen,
             self.game.outcome_data['message'],
             self.font_normal,
@@ -1126,14 +1126,20 @@ class MarsColonyGame:
         if result_image_path:
             img = self.load_and_scale_image(result_image_path)
             if img:
-                 # Position image in left pane
+                 # Position image in left pane, below the text with some padding
                  # Scale image to fit width (approx 850)
                  # Re-scale logic: load_and_scale_image scales to 790x500 by default (for right pane).
                  # We want it in left pane (890 wide).
                  # Let's just re-scale it or use it as is?
                  # load_and_scale_image returns 790x500.
                  # Left pane is 890 wide. 790 fits.
-                 self.screen.blit(img, (left_x + 50, left_y + 300))
+                 
+                 # Dynamic Y position
+                 image_y = left_y + 50 + text_height + 20
+                 
+                 # Ensure it doesn't go off screen
+                 if image_y < left_y + 860 - 300: # Simple check
+                     self.screen.blit(img, (left_x + 50, image_y))
 
         # Bottom Right Pane: Menu
         bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)

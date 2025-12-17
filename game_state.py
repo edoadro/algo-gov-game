@@ -537,6 +537,13 @@ class Game:
             'player_outcome': None
         }
 
+        # Check if BOTH players are eliminated
+        if self.ai_game_over and self.player_game_over:
+             # Skip remaining events
+             self.ai_final_stats = self.ai_stats.copy()
+             self.current_state = GameState.COMPARISON
+             return
+
         if self.current_event_index >= len(self.events):
             # Game Over / Comparison
             # In simultaneous mode, we just show comparison at end
