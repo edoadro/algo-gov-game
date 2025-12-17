@@ -1111,35 +1111,36 @@ class MarsColonyGame:
             left_y
         )
         
-        text_height = draw_multiline_text(
+        current_y = left_y + 50 # Start for content after title
+        image_h = 0
+        
+        # Draw result image if available (now before text)
+        result_image_path = self.game.outcome_data.get('result_image')
+        if result_image_path:
+            img = self.load_and_scale_image(result_image_path)
+            if img:
+                 # Image needs to be scaled to fit the left pane width (890px - padding)
+                 # load_and_scale_image scales to 790x500 which is for right pane.
+                 # The image is usually 790x500. This is 790 wide.
+                 # Left pane inner width is (890 - 2*15) = 860.
+                 # 790 fits. So blit as is.
+                 
+                 image_x_offset = (left_w - img.get_width()) // 2 + left_x # Center it
+                 self.screen.blit(img, (image_x_offset, current_y))
+                 image_h = img.get_height()
+                 current_y += image_h + 20 # Add padding after image
+
+        # Draw outcome message (now below image)
+        draw_multiline_text(
             self.screen,
             self.game.outcome_data['message'],
             self.font_normal,
             COLOR_TEXT,
             left_x,
-            left_y + 50,
+            current_y,
             left_w
         )
 
-        # Draw result image if available
-        result_image_path = self.game.outcome_data.get('result_image')
-        if result_image_path:
-            img = self.load_and_scale_image(result_image_path)
-            if img:
-                 # Position image in left pane, below the text with some padding
-                 # Scale image to fit width (approx 850)
-                 # Re-scale logic: load_and_scale_image scales to 790x500 by default (for right pane).
-                 # We want it in left pane (890 wide).
-                 # Let's just re-scale it or use it as is?
-                 # load_and_scale_image returns 790x500.
-                 # Left pane is 890 wide. 790 fits.
-                 
-                 # Dynamic Y position
-                 image_y = left_y + 50 + text_height + 20
-                 
-                 # Ensure it doesn't go off screen
-                 if image_y < left_y + 860 - 300: # Simple check
-                     self.screen.blit(img, (left_x + 50, image_y))
 
         # Bottom Right Pane: Menu
         bottom_x, bottom_y, bottom_w, bottom_h = draw_text_box(self.screen, 930, 540, 790, 340)
@@ -1465,11 +1466,22 @@ class MarsColonyGame:
         if self.game.ai_game_over:
             # Show Eliminated View
             draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, ax + aw//2, ay + 60, center=True)
+            
+            current_y_ai = ay + 110 # Starting Y after "ELIMINATED" title
+            ai_image_h = 0
+
             if self.game.ai_elimination_image:
                  img = self.load_and_scale_image(self.game.ai_elimination_image)
                  if img:
-                     scaled_img = pygame.transform.scale(img, (aw, 280))
-                     self.screen.blit(scaled_img, (ai_x + 15, ay + 120))
+                     scaled_img = pygame.transform.scale(img, (aw, 280)) # Scale for panel width
+                     # Center image horizontally in its panel
+                     image_x_offset_ai = (aw - scaled_img.get_width()) // 2 + ax
+                     self.screen.blit(scaled_img, (image_x_offset_ai, current_y_ai))
+                     ai_image_h = scaled_img.get_height()
+                     current_y_ai += ai_image_h + 20 # Padding after image
+
+            # Draw Message (e.g. Death Reason)
+            draw_multiline_text(self.screen, ai_out['message'], self.font_normal, COLOR_TEXT, ax, current_y_ai, aw)
         else:
             # Normal Result View
             status_text = "SUCCESS" if ai_out['success'] else "FAILURE"
@@ -1494,11 +1506,22 @@ class MarsColonyGame:
         if self.game.player_game_over:
             # Show Eliminated View
             draw_text(self.screen, "ELIMINATED", self.font_title, COLOR_TEXT, px + pw//2, py + 60, center=True)
+            
+            current_y_player = py + 110 # Starting Y after "ELIMINATED" title
+            player_image_h = 0
+
             if self.game.player_elimination_image:
                  img = self.load_and_scale_image(self.game.player_elimination_image)
                  if img:
                      scaled_img = pygame.transform.scale(img, (pw, 280))
-                     self.screen.blit(scaled_img, (player_x + 15, py + 120))
+                     # Center image horizontally in its panel
+                     image_x_offset_player = (pw - scaled_img.get_width()) // 2 + px
+                     self.screen.blit(scaled_img, (image_x_offset_player, current_y_player))
+                     player_image_h = scaled_img.get_height()
+                     current_y_player += player_image_h + 20 # Padding after image
+            
+            # Draw Message (e.g. Death Reason)
+            draw_multiline_text(self.screen, p_out['message'], self.font_normal, COLOR_TEXT, px, current_y_player, pw)
         else:
             status_text = "SUCCESS" if p_out['success'] else "FAILURE"
             color = COLOR_ACCENT if p_out['success'] else COLOR_TEXT
